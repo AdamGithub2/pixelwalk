@@ -147,6 +147,63 @@ body {
   transform: translateY(-1px);
 }
 
+.level-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 2px solid #90a9b8;
+  border-radius: 4px;
+  background: rgba(14, 18, 34, 0.94);
+  color: #d1dcfa;
+  font-size: 18px;
+}
+
+.level-switch select {
+  min-height: 28px;
+  max-width: 200px;
+  border: 0;
+  background: #171e2c;
+  color: #e9e3d4;
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.level-switch select:focus-visible {
+  outline: 2px solid #ffe600;
+  outline-offset: 3px;
+}
+
+.level-status {
+  position: fixed;
+  top: 68px;
+  right: 16px;
+  z-index: 40;
+  color: #e9e3d4;
+  background: rgba(14, 18, 34, 0.85);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.level-status:empty { display: none; }
+body[data-level="prl"] .level-switch { border-color: #c5af77; }
+
+@media (max-width: 850px) {
+  .floating-top-bar { flex-wrap: wrap; justify-content: flex-end; max-width: calc(100vw - 32px); }
+  .level-switch { order: 1; }
+  .level-status { top: 118px; }
+}
+
+@media (max-width: 520px) {
+  .floating-top-bar { top: 54px; gap: 6px; }
+  .floating-btn { padding: 9px 7px; font-size: 8px; }
+  .level-switch { padding: 4px 8px; font-size: 16px; }
+  .level-status { top: 148px; }
+}
+
 /* ==========================================================================
    WYSUWANY PANEL BOCZNY (DRAWER Z PRAWEJ)
    ========================================================================== */

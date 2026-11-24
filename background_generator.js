@@ -1,3 +1,5 @@
+import './prl_assets.js';
+import './prl_background.js';
 /**
  * ZAJEBISTE WIELOWARSTWOWE TŁO PIXEL ART (320x180 Virtual Resolution)
  * 
@@ -16,6 +18,8 @@ export class PixelBackground {
   constructor(width = 320, height = 180) {
     this.width = width;
     this.height = height;
+    this.level = 'city';
+    this.prlBackground = new globalThis.PrlBackground(width, height);
 
     this.skyCanvas = document.createElement('canvas');
     this.farSkylineCanvas = document.createElement('canvas');
@@ -329,7 +333,18 @@ export class PixelBackground {
   }
 
   // --- RENDEROWANIE Z BEZSZWOWYM ZAPĘTLENIEM PARALLAXU ---
+  async setLevel(level) {
+    if (level !== 'city' && level !== 'prl') throw new Error('Nieznany poziom');
+    if (level === 'prl') await this.prlBackground.load();
+    this.level = level;
+  }
+
   render(targetCtx, cameraX = 0, time = 0) {
+    if (this.level === 'prl') {
+      this.prlBackground.render(targetCtx, cameraX);
+      return;
+    }
+
     targetCtx.imageSmoothingEnabled = false;
 
     // Gwarancja: cameraX nigdy nie jest ujemny

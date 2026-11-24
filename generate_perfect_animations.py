@@ -2,11 +2,14 @@ import os
 import math
 import json
 import base64
+import sys
+from pathlib import Path
 from io import BytesIO
 import numpy as np
 from PIL import Image, ImageDraw
 
-hero = Image.open('c:/Aplikacje/Komponenty JS imponujace/pixel_animacja/hero_tight.png').convert('RGBA')
+ROOT = Path(__file__).resolve().parent
+hero = Image.open(ROOT / 'hero_tight.png').convert('RGBA')
 hw, hh = hero.size
 
 FW, FH = 48, 56
@@ -16,6 +19,51 @@ scale = BASE_H / float(hh)
 
 # Upper body: Head, neck, torso, hoodie, jacket as ONE SOLID UNBROKEN PIECE
 upper_body = hero.crop((0, 0, hw, 840))
+
+# The near sleeve and pocketed hand must leave the torso before the arm moves.
+attack_body = upper_body.copy()
+arm_mask = Image.new('L', attack_body.size)
+ImageDraw.Draw(arm_mask).polygon(
+    [(80, 345), (139, 358), (179, 449), (174, 532),
+     (173, 583), (215, 688), (152, 729), (76, 638), (37, 523)], fill=255)
+attack_body.paste((0, 0, 0, 0), (0, 0, hw, 840), arm_mask)
+# Fill the jacket behind the removed arm; keep the backpack outside this patch.
+ImageDraw.Draw(attack_body).polygon(
+    [(130, 365), (180, 395), (204, 565), (221, 690),
+     (149, 710), (110, 643), (100, 490)], fill='#393541')
+
+
+def draw_attack_arm(body, origin, pose):
+    """Two connected sleeve segments with a visible closed fist (source pixels)."""
+    shoulder = (origin[0] + 123, origin[1] + 387)
+    elbow = (shoulder[0] + pose[0], shoulder[1] + pose[1])
+    wrist = (elbow[0] + pose[2], elbow[1] + pose[3])
+    draw = ImageDraw.Draw(body)
+
+    def segment(a, b, width):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        nx, ny = -dy / length, dx / length
+        points = [(a[0] + nx * width, a[1] + ny * width),
+                  (b[0] + nx * width * .8, b[1] + ny * width * .8),
+                  (b[0] - nx * width * .8, b[1] - ny * width * .8),
+                  (a[0] - nx * width, a[1] - ny * width)]
+        draw.polygon(points, fill='#181722')
+        draw.line([a, b], fill='#48424f', width=int(width * 1.6))
+        draw.line([(a[0] - 10, a[1]), (b[0] - 10, b[1])],
+                  fill='#5c5360', width=12)
+
+    segment(shoulder, elbow, 48)
+    draw.ellipse((elbow[0]-35, elbow[1]-35, elbow[0]+35, elbow[1]+35), fill='#48424f')
+    segment(elbow, wrist, 40)
+    dx, dy = pose[2], pose[3]
+    length = math.hypot(dx, dy)
+    ux, uy = dx / length, dy / length
+    fist = (wrist[0] + ux * 38, wrist[1] + uy * 38)
+    draw.ellipse((wrist[0]-33, wrist[1]-33, wrist[0]+33, wrist[1]+33), fill='#292530')
+    draw.ellipse((fist[0]-39, fist[1]-37, fist[0]+39, fist[1]+37),
+                 fill='#f0b48c', outline='#392832', width=8)
+    draw.line([(fist[0]+5, fist[1]-17), (fist[0]+20, fist[1]-6)], fill='#cf835d', width=7)
 
 # Legs for natural knee articulation
 legs = hero.crop((0, 800, hw, hh))
@@ -72,7 +120,7 @@ def compose_frame(
     body_lean=0, bounce_dy=0,
     l_thigh=0, l_knee=0, r_thigh=0, r_knee=0,
     squash_y=1.0, stretch_x=1.0,
-    fx_type=None, fx_phase=0
+    fx_type=None, fx_phase=0, arm_pose=None
 ):
     sub_w, sub_h = 1000, 1600
     sub = Image.new('RGBA', (sub_w, sub_h), (0, 0, 0, 0))
@@ -90,7 +138,10 @@ def compose_frame(
     ub_c = Image.new('RGBA', (sub_w, sub_h), (0, 0, 0, 0))
     ub_top_x = center_x - hw // 2
     ub_top_y = hip_y - 800
-    ub_c.paste(upper_body, (ub_top_x, ub_top_y), upper_body)
+    source_body = attack_body if arm_pose else upper_body
+    ub_c.paste(source_body, (ub_top_x, ub_top_y), source_body)
+    if arm_pose:
+        draw_attack_arm(ub_c, (ub_top_x, ub_top_y), arm_pose)
     if body_lean != 0:
         ub_c = ub_c.rotate(-body_lean, center=(center_x, hip_y), resample=Image.Resampling.BICUBIC)
     sub.paste(ub_c, (0, 0), ub_c)
@@ -121,20 +172,12 @@ def compose_frame(
         py = GROUND_Y - int(GROUND_Y * squash_y)
         frame.paste(rescaled, (px, py), rescaled)
 
-    # Slash / Sonic FX if attack or special
+    # Short speed marks follow the fist rather than suggesting a sword blade.
     if fx_type == 'attack':
         draw = ImageDraw.Draw(frame)
-        arc_cx = FW // 2 + 8
-        arc_cy = GROUND_Y - 24
-        if fx_phase == 1:
-            draw.arc([arc_cx - 4, arc_cy - 12, arc_cx + 14, arc_cy + 12], 260, 40, fill=(0, 240, 255, 200), width=2)
-        elif fx_phase == 2:
-            draw.arc([arc_cx - 8, arc_cy - 16, arc_cx + 18, arc_cy + 16], 240, 60, fill=(255, 255, 255, 255), width=3)
-            draw.arc([arc_cx - 9, arc_cy - 17, arc_cx + 19, arc_cy + 17], 240, 60, fill=(0, 240, 255, 180), width=1)
-        elif fx_phase == 3:
-            draw.arc([arc_cx - 6, arc_cy - 18, arc_cx + 20, arc_cy + 18], 220, 80, fill=(0, 240, 255, 130), width=2)
-            draw.point((arc_cx + 14, arc_cy - 8), fill=(0, 255, 255, 220))
-            draw.point((arc_cx + 16, arc_cy + 4), fill=(255, 255, 255, 220))
+        if fx_phase == 2:
+            draw.line([(34, 21), (39, 20)], fill=(200, 225, 245, 170), width=1)
+            draw.line([(35, 25), (40, 25)], fill=(200, 225, 245, 130), width=1)
 
     elif fx_type == 'special':
         draw = ImageDraw.Draw(frame)
@@ -186,23 +229,23 @@ run_params = [
 for p in run_params:
     animations['run'].append(compose_frame(**p))
 
-# 4. JUMP (Naturalne ugięcie nóg: wybicie, szczyt z podkurczonymi nogami, opadanie, lądowanie)
+# 4. JUMP: one relaxed bent-knee pose throughout flight, then landing.
+airborne_pose = {'body_lean': 2, 'l_thigh': 16, 'l_knee': 32,
+                 'r_thigh': 12, 'r_knee': 28}
 jump_params = [
-    {'body_lean': 3, 'l_thigh': 24, 'l_knee': 28, 'r_thigh': -12, 'r_knee': 18},
-    {'body_lean': 2, 'l_thigh': 28, 'l_knee': 42, 'r_thigh': 18, 'r_knee': 36},
-    {'body_lean': 0, 'l_thigh': -4, 'l_knee': 8, 'r_thigh': 6, 'r_knee': 12},
+    airborne_pose, airborne_pose, airborne_pose,
     {'squash_y': 0.90, 'stretch_x': 1.05, 'l_thigh': 10, 'l_knee': 20, 'r_thigh': -10, 'r_knee': 20},
 ]
 for p in jump_params:
     animations['jump'].append(compose_frame(**p))
 
-# 5. ATTACK (5 frames)
+# 5. ATTACK: wind-up, forward swing, full extension, recoil, hand to pocket.
 attack_params = [
-    {'body_lean': 0, 'l_thigh': -6, 'l_knee': 8, 'r_thigh': 6, 'r_knee': 8},
-    {'body_lean': 6, 'l_thigh': 14, 'l_knee': 12, 'r_thigh': -10, 'r_knee': 14, 'fx_type': 'attack', 'fx_phase': 1},
-    {'body_lean': 8, 'l_thigh': 18, 'l_knee': 16, 'r_thigh': -14, 'r_knee': 18, 'fx_type': 'attack', 'fx_phase': 2},
-    {'body_lean': 5, 'l_thigh': 10, 'l_knee': 10, 'r_thigh': -8, 'r_knee': 10, 'fx_type': 'attack', 'fx_phase': 3},
-    {'body_lean': 0, 'l_thigh': 2, 'l_knee': 6, 'r_thigh': -2, 'r_knee': 6},
+    {'body_lean': -3, 'arm_pose': (-90, 135, 85, -125)},
+    {'body_lean': 3, 'arm_pose': (50, 90, 140, -155)},
+    {'body_lean': 7, 'arm_pose': (195, -35, 185, -20), 'fx_type': 'attack', 'fx_phase': 2},
+    {'body_lean': 4, 'arm_pose': (125, 90, 135, -65)},
+    {'body_lean': 0},
 ]
 for p in attack_params:
     animations['attack'].append(compose_frame(**p))
@@ -230,19 +273,25 @@ for anim_name, frames in animations.items():
         b64 = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
         b64_animations[anim_name].append(b64)
 
-with open('c:/Aplikacje/Komponenty JS imponujace/pixel_animacja/hero_hd_data.js', 'w', encoding='utf-8') as f:
-    f.write('const HD_HERO_ANIMATIONS = ' + json.dumps(b64_animations) + ';\n')
+# A focused update preserves every other animation byte for byte.
+focused_animation = 'jump' if '--jump-only' in sys.argv else 'attack' if '--attack-only' in sys.argv else None
+if focused_animation:
+    existing = (ROOT / 'hero_hd_data.js').read_text(encoding='utf-8')
+    previous = json.loads(existing.split('=', 1)[1].strip().rstrip(';'))
+    previous[focused_animation] = b64_animations[focused_animation]
+    b64_animations = previous
 
-# Replace in index.html
-html_path = 'c:/Aplikacje/Komponenty JS imponujace/pixel_animacja/index.html'
-with open(html_path, 'r', encoding='utf-8') as f:
-    html = f.read()
+(ROOT / 'hero_hd_data.js').write_text(
+    'const HD_HERO_ANIMATIONS = ' + json.dumps(b64_animations) + ';\n', encoding='utf-8')
 
 import re
+html_path = ROOT / 'index.html'
+with html_path.open('r', encoding='utf-8', newline='') as f:
+    html = f.read()
 replacement = 'const HD_HERO_ANIMATIONS = ' + json.dumps(b64_animations) + ';'
-html = re.sub(r'const HD_HERO_ANIMATIONS = \{[\s\S]*?\};', replacement, html, count=1)
-
-with open(html_path, 'w', encoding='utf-8') as f:
+html, count = re.subn(r'const HD_HERO_ANIMATIONS = \{[\s\S]*?\};', replacement, html, count=1)
+assert count == 1, 'Missing embedded hero animation data'
+with html_path.open('w', encoding='utf-8', newline='') as f:
     f.write(html)
 
-print("SUCCESS: index.html updated with seamless knee joints!")
+print('SUCCESS: hero_hd_data.js and index.html updated')

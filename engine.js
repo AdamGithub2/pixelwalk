@@ -1,3 +1,4 @@
+import './game_audio.js';
 /**
  * PIXEL ART ANIMATION ENGINE & COMPOSITOR
  * 
@@ -33,6 +34,7 @@ export class AnimationEngine {
     // Moduły
     this.character = new PixelCharacter();
     this.background = new PixelBackground(this.virtualWidth, this.virtualHeight);
+    this.audio = new globalThis.GameAudio();
 
     // Stan postaci
     this.player = {
@@ -73,7 +75,12 @@ export class AnimationEngine {
 
     // Uruchomienie pętli
     this.loop = this.loop.bind(this);
-    requestAnimationFrame(this.loop);
+    this.ready = this.setLevel('prl');
+    const start = () => {
+      this.lastTime = performance.now();
+      requestAnimationFrame(this.loop);
+    };
+    this.ready.then(start, start);
   }
 
   initInput() {
@@ -102,6 +109,7 @@ export class AnimationEngine {
       }
     });
 
+    window.addEventListener('blur', () => { this.keys = {}; });
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
     });
@@ -128,6 +136,21 @@ export class AnimationEngine {
     if (this.onStateChange) this.onStateChange(animName);
   }
 
+  getGroundLevel() {
+    if (this.background.level === 'prl') {
+      const feetY = this.character.footOffsetY ?? (this.character.height - 2);
+      return this.background.prlBackground.walkingLineY - feetY;
+    }
+    return 112;
+  }
+
+  async setLevel(level) {
+    const previousGround = this.getGroundLevel();
+    await this.background.setLevel(level);
+    // Preserve the current jump height when changing scenery in mid-air.
+    this.player.y += this.getGroundLevel() - previousGround;
+  }
+
   triggerAttack() {
     this.setAnimation('attack', false);
   }
@@ -138,9 +161,12 @@ export class AnimationEngine {
 
   jump() {
     if (this.player.isGrounded) {
+      this.audio.jump();
       this.player.vy = -4.5;
       this.player.isGrounded = false;
       this.setAnimation('jump', false);
+      this.player.frameIndex = 1;
+      this.player.frameTimer = 0;
     }
   }
 
@@ -175,6 +201,7 @@ export class AnimationEngine {
 
   // --- AKTUALIZACJA LOGIKI I FIZYKI ---
   update(dt) {
+    const previousX = this.player.x;
     this.timeCounter += dt;
 
     // Tryb demonstracyjny
@@ -185,7 +212,7 @@ export class AnimationEngine {
     }
 
     // Aktualizacja klatek animacji postaci
-    if (this.player.isPlaying) {
+    if (this.player.isPlaying && !(this.player.currentAnim === 'jump' && !this.player.isGrounded)) {
       const frames = this.character.animations[this.player.currentAnim];
       const frameDuration = 1 / this.player.fps;
       this.player.frameTimer += dt;
@@ -220,6 +247,11 @@ export class AnimationEngine {
     }
 
     // Płynne podążanie kamery za postacią (kamera NIGDY nie zjeżdża poniżej 0)
+    this.audio.setWalking(
+      this.player.isGrounded && this.player.isPlaying && this.player.x !== previousX &&
+      (this.player.currentAnim === 'walk' || this.player.currentAnim === 'run'),
+      this.player.currentAnim === 'run'
+    );
     const targetCamX = Math.max(0, this.player.x - 120);
     this.cameraX += (targetCamX - this.cameraX) * 0.08;
     if (this.cameraX < 0) this.cameraX = 0;
@@ -259,16 +291,13 @@ export class AnimationEngine {
       this.player.vy += 0.22; // Grawitacja pixelowa
       this.player.y += this.player.vy;
 
-      // Wybór klatki skoku w zależności od prędkości pionowej
+      // Hold the same bent-knee pose throughout flight.
       if (this.player.currentAnim === 'jump') {
-        const jumpFrames = this.character.animations['jump'];
-        if (this.player.vy < -2) this.player.frameIndex = 0;       // Wznoszenie
-        else if (this.player.vy < 1) this.player.frameIndex = 1;  // Szczyt
-        else this.player.frameIndex = 2;                          // Opadanie
+        this.player.frameIndex = 1;
       }
 
       // Lądowanie na platformie
-      const groundLevel = 112; // 142 podłoga - 30 wysokość stóp
+      const groundLevel = this.getGroundLevel(); // 142 podłoga - 30 wysokość stóp
       if (this.player.y >= groundLevel) {
         this.player.y = groundLevel;
         this.player.vy = 0;
