@@ -123,6 +123,18 @@ body {
   align-items: center;
 }
 
+.floating-hud[hidden] { display: none; }
+
+.floating-btn.settings-icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  font-family: sans-serif;
+  font-size: 26px;
+  line-height: 1;
+}
+
 .floating-btn {
   font-family: var(--font-pixel);
   font-size: 11px;
@@ -176,10 +188,7 @@ body {
 }
 
 .level-status {
-  position: fixed;
-  top: 68px;
-  right: 16px;
-  z-index: 40;
+  position: static;
   color: #e9e3d4;
   background: rgba(14, 18, 34, 0.85);
   border-radius: 3px;
@@ -187,6 +196,8 @@ body {
   font-size: 17px;
   pointer-events: none;
 }
+
+.side-drawer .level-switch select { flex: 1; min-width: 0; max-width: none; }
 
 .level-status:empty { display: none; }
 body[data-level="prl"] .level-switch { border-color: #c5af77; }
@@ -198,7 +209,7 @@ body[data-level="prl"] .level-switch { border-color: #c5af77; }
 }
 
 @media (max-width: 520px) {
-  .floating-top-bar { top: 54px; gap: 6px; }
+  .floating-top-bar { top: 14px; gap: 6px; }
   .floating-btn { padding: 9px 7px; font-size: 8px; }
   .level-switch { padding: 4px 8px; font-size: 16px; }
   .level-status { top: 148px; }

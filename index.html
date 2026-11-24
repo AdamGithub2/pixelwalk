@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pixel Art Animation Engine // Frame Blitter</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -15,25 +15,19 @@
   </div>
 
   <!-- PŁYWAJĄCY MINIMALISTYCZNY HUD W LEWYM GÓRNYM ROGU -->
-  <div class="floating-hud">
+  <div class="floating-hud" hidden>
     <div class="hud-pill">STAN: <span id="lbl-current-state">IDLE</span></div>
     <div class="hud-pill">KLATKA: <span id="lbl-frame-counter">1 / 6</span></div>
   </div>
 
   <!-- PŁYWAJĄCE PRZYCISKI W PRAWYM GÓRNYM ROGU -->
   <div class="floating-top-bar">
-    <label class="level-switch" for="level-select">
-      <span>POZIOM</span>
-      <select id="level-select" aria-label="Wybierz poziom">
-        <option value="prl" selected>Polska / PRL</option>
-        <option value="city">Miasto o zmierzchu</option>
-      </select>
-    </label>
+
     <button class="floating-btn" id="btn-fullscreen" title="Przełącz pełny ekran">⛶ PEŁNY EKRAN</button>
-    <button class="floating-btn" id="btn-open-drawer" title="Otwórz ustawienia i klatki">⚙️ OPCJE & KLATKI</button>
+    <button class="floating-btn settings-icon-btn" id="btn-open-drawer" title="Opcje i klatki" aria-label="Otwórz opcje i klatki">⚙</button>
   </div>
 
-  <div id="level-status" class="level-status" role="status" aria-live="polite"></div>
+
 
   <!-- WIRTUALNY GAMEPAD / TOUCH CONTROLS DLA URZĄDZEŃ MOBILNYCH -->
   <div class="touch-controls-layer" id="touch-controls">
@@ -75,6 +69,17 @@
     <div class="drawer-header">
       <div class="drawer-title">⚙️ USTAWIENIA & KLATKI</div>
       <button class="btn-close-drawer" id="btn-close-drawer" title="Zamknij panel">&times;</button>
+    </div>
+
+    <div class="drawer-section">
+    <label class="level-switch" for="level-select">
+      <span>POZIOM</span>
+      <select id="level-select" aria-label="Wybierz poziom">
+        <option value="prl" selected>Polska / PRL</option>
+        <option value="city">Miasto o zmierzchu</option>
+      </select>
+    </label>
+      <div id="level-status" class="level-status" role="status" aria-live="polite"></div>
     </div>
 
     <div class="drawer-section">
@@ -1375,7 +1380,7 @@ class AnimationEngine {
       levelStatus.textContent = 'Wczytywanie scenerii...';
       engine.ready.then(() => {
         document.body.dataset.level = 'prl';
-        levelStatus.textContent = 'Polska / PRL';
+        levelStatus.textContent = '';
       }, () => {
         levelSelect.value = 'city';
         document.body.dataset.level = 'city';
@@ -1395,7 +1400,7 @@ class AnimationEngine {
         try {
           await engine.setLevel(levelSelect.value);
           document.body.dataset.level = levelSelect.value;
-          levelStatus.textContent = levelSelect.selectedOptions[0].textContent;
+          levelStatus.textContent = '';
         } catch (error) {
           levelSelect.value = previous;
           levelStatus.textContent = 'Nie udało się wczytać poziomu. Spróbuj ponownie.';
