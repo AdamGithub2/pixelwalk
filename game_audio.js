@@ -16,7 +16,7 @@ globalThis.GameAudio = class GameAudio {
     this.steps.volume = 0.5;
     this.jumpSound.volume = 0.6;
     this.voices.forEach(voice => {
-      voice.volume = 0.85;
+      voice.volume = 0.425;
       voice.onended = voice.onerror = () => {
         if (this.currentVoice === voice) this.stopVoice();
       };
