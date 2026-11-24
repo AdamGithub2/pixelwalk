@@ -16,6 +16,14 @@ Każdy budynek mieszkalny ma inną wygenerowaną klatkę: kamienica z drewnianym
 
 Dziewięć nowych grafik rastrowych pochodzi z wbudowanego generatora `image_gen`; zapisano je w `assets/interiors/` (`stairwell-01.png`–`stairwell-06.png`, `ruch.png`, `cinema.png`, `market.png`). Pełne prompty są w `assets/interiors/generation-prompts.json`. Grafiki są ładowane z lokalnych plików zarówno przez HTTP, jak i w samodzielnym `index.html` otwieranym przez `file://`.
 
+### Rozmowy, notatnik i mieszkanie 5
+
+`location_dialogues.js` zawiera osobne listy mieszkańców sześciu budynków oraz sprzedawców Społem, Ruchu, kina i targu. Po odebraniu domofonu można wybierać pytania. Rozmówcy podpowiadają, gdzie znaleźć osoby interesujące się naprawą sprzętu, nagraniami i kasetami; mają też własne historie o osiedlu. Przeczytane odpowiedzi trafiają do wspólnego notatnika dostępnego w menu lokacji. Notatki pozostają do odświeżenia strony, tak jak plecak i portfel.
+
+W starej kamienicy pozycja **5** na liście domofonu to **Moje mieszkanie**. Wejście jest też dostępne bezpośrednio w menu klatki. Pokój ma wygenerowane tło `assets/interiors/apartment-05.png`: komputer z monitorem CRT, osobną obudową i klawiaturą oraz jeden radiomagnetofon z dwiema kieszeniami na kasety. Prompt wbudowanego `image_gen` zapisano w `assets/interiors/apartment-05-prompt.txt`. Komputer i radio można obejrzeć; wyposażenie przygotowuje miejsce pod przyszłą misję przegrywania, sama misja nie jest jeszcze uruchomiona.
+
+Większa postać bohatera jest rysowana na tle klatki kamienicy i mieszkania 5 z istniejących klatek idle. **Esc** z menu mieszkania wraca na klatkę, a kolejny **Esc** na ulicę. Testy dialogów i powrotów: `node --test tests/location-dialogues.test.cjs`.
+
 Projekt dedykowany animacji klatkowej w stylu **Pixel Art** bez użycia SVG i bez wektorowych transformacji, które niszczą charakterystyczną ostrość pikseli.
 
 ### Przechodnie i pościg

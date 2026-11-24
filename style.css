@@ -70,6 +70,10 @@ canvas, img {
 .shop-message { margin: 10px 0 12px; min-height: 1.3em; }
 .shop-choices { display: flex; gap: 8px; }
 .intercom-mode .shop-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dialogue-mode .shop-choices, .tenement-mode .shop-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tenement-mode { left: auto; right: max(16px, env(safe-area-inset-right)); transform: none; width: min(720px, calc(66vw - 24px)); }
+.dialogue-mode .shop-choices button, .tenement-mode .shop-choices button { text-align: left; overflow-wrap: anywhere; }
+.shop-choices button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .intercom-mode .shop-choices button { text-align: left; }
 .intercom-mode .shop-choices button:last-child { border-color: #c6ad7c; }
 .shop-dialog { max-height: calc(100dvh - 28px); overflow-y: auto; }
@@ -92,6 +96,7 @@ canvas, img {
 .shop-help { display: block; margin-top: 10px; font-size: 16px; color: #b2bda6; }
 .in-building .touch-controls-layer, .in-building .floating-top-bar { visibility: hidden; }
 @media (max-width: 600px) {
+  .shop-dialog.tenement-mode { left: 50%; right: auto; transform: translateX(-50%); width: calc(100% - 32px); }
   .shop-dialog { padding: 10px 12px; font-size: 19px; bottom: 10px; }
   .shop-heading small { display: none; }
   .shop-wallet { font-size: 15px; }

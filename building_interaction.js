@@ -17,14 +17,14 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.interiorImage = new Image();
     this.interiorImage.src = './Nostalgiczny sklep Społem w pikselach.png';
     this.destinations = [
-      { id: 'tenement', type: 'block', x: 45, width: 12, title: 'KAMIENICA', subtitle: 'Stara klatka', asset: 'stairwell-01', description: 'Drewniane stopnie skrzypią. Bordowa lamperia jest przetarta, a pod oknem odchodzi tynk.' },
+      { id: 'tenement', type: 'block', x: 40, width: 12, title: 'KAMIENICA', subtitle: 'Stara klatka', asset: 'stairwell-01', description: 'Drewniane stopnie skrzypią. Bordowa lamperia jest przetarta, a pod oknem odchodzi tynk.' },
       { id: 'spolem', x: 144, width: 19, title: 'SPOŁEM', subtitle: 'Sklep osiedlowy' },
-      { id: 'block', type: 'block', x: 254, width: 15, title: 'BLOK NR 2', subtitle: 'Zielona klatka', asset: 'stairwell-02', description: 'Zapach wilgotnego lastryka. Zielona farba odpryskuje z poręczy, nad skrzynkami brzęczy świetlówka.' },
+      { id: 'block', type: 'block', x: 250, width: 25, title: 'BLOK NR 2', subtitle: 'Zielona klatka', asset: 'stairwell-02', description: 'Zapach wilgotnego lastryka. Zielona farba odpryskuje z poręczy, nad skrzynkami brzęczy świetlówka.' },
       { id: 'ruch', x: 367, width: 12, title: 'RUCH', subtitle: 'Prasa i drobiazgi', asset: 'ruch' },
-      { id: 'block-blue', type: 'block', x: 454, width: 14, title: 'BLOK NR 3', subtitle: 'Niebieska klatka', asset: 'stairwell-03', description: 'Niebieska lamperia pamięta lepsze czasy. Pod oknem stoi stary kaloryfer, na tablicy wiszą pożółkłe ogłoszenia.' },
-      { id: 'cinema', x: 630, width: 28, title: 'KINO', subtitle: 'Kasa biletowa', asset: 'cinema' },
+      { id: 'block-blue', type: 'block', x: 459, width: 22, title: 'BLOK NR 3', subtitle: 'Niebieska klatka', asset: 'stairwell-03', description: 'Niebieska lamperia pamięta lepsze czasy. Pod oknem stoi stary kaloryfer, na tablicy wiszą pożółkłe ogłoszenia.' },
+      { id: 'cinema', x: 637, width: 80, title: 'KINO', subtitle: 'Kasa biletowa', asset: 'cinema' },
       { id: 'market', x: 868, width: 17, title: 'TARG', subtitle: 'Warzywniak pod dachem', asset: 'market' },
-      { id: 'block-yellow', type: 'block', x: 1216, width: 13, title: 'BLOK NR 4', subtitle: 'Żółta klatka', asset: 'stairwell-04', description: 'Musztardowa farba, chłodne lastryko i ciężkie drzwi do piwnicy. W rogu widać ślady dawnego zacieku.' },
+      { id: 'block-yellow', type: 'block', x: 1236, width: 23, title: 'BLOK NR 4', subtitle: 'Żółta klatka', asset: 'stairwell-04', description: 'Musztardowa farba, chłodne lastryko i ciężkie drzwi do piwnicy. W rogu widać ślady dawnego zacieku.' },
       { id: 'tower', type: 'block', x: 1420, width: 13, title: 'PUNKTOWIEC', subtitle: 'Klatka z windą', asset: 'stairwell-05', description: 'Za porysowanymi drzwiami buczy stara winda. Rdzawa lamperia i gołe przewody pod sufitem.' },
       { id: 'block-turquoise', type: 'block', x: 1579, width: 13, title: 'BLOK NR 6', subtitle: 'Turkusowa klatka', asset: 'stairwell-06', description: 'Spod turkusowej farby wychodzi beż. Wgniecione skrzynki, zardzewiała rura i wydeptane stopnie.' }
     ];
@@ -39,13 +39,11 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     }
     this.destination = null;
     this.pendingCall = null;
-    this.residents = [
-      { name: 'Anna Kowalska', flat: 1, reply: 'Anna Kowalska: Tak, słucham? Właśnie zaparzyłam herbatę. W czym mogę pomóc?' },
-      { name: 'Jan Nowak', flat: 2, reply: 'Jan Nowak: Dzień dobry! Jeśli chodzi o rower, stoi bezpiecznie w piwnicy.' },
-      { name: 'Zofia Wiśniewska', flat: 3, reply: 'Zofia Wiśniewska: Kto tam? Proszę mówić głośniej, słabo słyszę przez ten domofon.' },
-      { name: 'Piotr Zieliński', flat: 4, reply: 'Piotr Zieliński: Chwileczkę… Już jestem. O co chodzi?' },
-      { name: 'Marek Wójcik', flat: 5, reply: 'Mieszkanie 5: Nikt nie odbiera. Spróbuj później.' }
-    ];
+    this.room = null;
+    this.notes = new Map();
+    const apartment = new Image();
+    apartment.src = './assets/interiors/apartment-05.png';
+    this.images.set('apartment-05', apartment);
     this.prompt = document.createElement('button');
     this.prompt.className = 'building-prompt';
     this.prompt.textContent = '↑ / W · Wejdź do Społem';
@@ -63,6 +61,8 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   get active() { return this.state !== 'street'; }
+
+  get residents() { return globalThis.LOCATION_DIALOGUES.homes[this.destination?.id] ?? []; }
 
   nearbyDoor() {
     const e = this.engine;
@@ -92,7 +92,8 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     event.preventDefault();
     if (event.repeat || this.state !== 'inside') return true;
     if (event.code === 'Escape') {
-      if (this.menu === 'main') this.exit();
+      if (this.menu === 'main' && this.room === 'apartment') this.leaveApartment();
+      else if (this.menu === 'main') this.exit();
       else this.showMenu();
     } else if (['ArrowUp', 'ArrowDown'].includes(event.code)) {
       const buttons = [...this.panel.querySelectorAll('button')];
@@ -117,6 +118,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.saved = { x: e.player.x, y: e.getGroundLevel(), facing: e.player.facing, cameraX: e.cameraX };
     this.door = door;
     this.destination = door.destination;
+    this.room = null;
     this.state = 'entering';
     this.elapsed = 0;
     this.previousFocus = document.activeElement;
@@ -145,6 +147,8 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.state = 'street';
     this.saved = null;
     this.destination = null;
+    this.room = null;
+    this.speaker = null;
     this.pendingCall = null;
     this.panel.hidden = this.prompt.hidden = true;
     e.keys = {};
@@ -176,10 +180,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       if (this.pendingCall.remaining <= 0) {
         const resident = this.pendingCall.resident;
         this.pendingCall = null;
-        this.setChoices(resident.reply, [
-          ['Wybierz inną osobę', () => this.showIntercom()],
-          ['Wróć na ulicę', () => this.exit()]
-        ]);
+        this.showConversation(resident, () => this.showIntercom());
       }
     }
     return true;
@@ -187,12 +188,15 @@ globalThis.BuildingInteraction = class BuildingInteraction {
 
   showMenu(message = 'Dzień dobry! Co podać?') {
     this.pendingCall = null;
+    this.speaker = null;
+    if (this.room === 'apartment') return this.showApartment();
     if (this.destination?.type === 'block') return this.showStairwell();
     if (this.destination?.id !== 'spolem') return this.showLocalMenu();
     this.menu = 'main';
     this.setChoices(message, [
       ['Zobacz towary', () => this.showGoods()],
-      ['Porozmawiaj', () => this.showMenu('Świeży chleb przyjeżdża codziennie rano. A po drugiej stronie ulicy znów grają coś w kinie!')],
+      ['Porozmawiaj', () => this.showShopConversation()],
+      ['Notatnik', () => this.showNotebook()],
       ['Wyjdź na ulicę', () => this.exit()]
     ]);
   }
@@ -200,8 +204,10 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   showStairwell(message = this.destination.description) {
     this.menu = 'main';
     this.setChoices(message, [
+      ...(this.destination.id === 'tenement' ? [['Mieszkanie 5 · moje mieszkanie', () => this.showApartment()]] : []),
       ['Domofon · spis mieszkańców', () => this.showIntercom()],
       ['Obejrzyj klatkę', () => this.showStairwell(this.destination.description + ' Na półpiętrze słychać radio zza zamkniętych drzwi.')],
+      ['Notatnik', () => this.showNotebook()],
       ['Wyjdź na ulicę', () => this.exit()]
     ]);
   }
@@ -213,14 +219,10 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       cinema: 'Wieczorny seans o dziewiętnastej. Bilety kupisz tutaj, w kasie.',
       market: 'Jabłka prosto z sadu! Proszę podejść, proszę wybierać.'
     };
-    const gossip = {
-      ruch: 'Gazety przywożą o świcie. Krzyżówki szybko znikają, sąsiedzi kupują je do popołudniowej herbaty.',
-      cinema: 'Plakaty zmieniamy ręcznie. Proszę zachować bilet — bileter sprawdza go przy sali.',
-      market: 'Dzisiaj najlepsze jabłka. Skrzynki stoją od rana, a w hali jak zwykle trochę ciągnie.'
-    };
     this.setChoices(messages[this.destination.id], [
       [this.destination.id === 'cinema' ? 'Kup bilet' : 'Zobacz towary', () => this.showGoods()],
-      ['Porozmawiaj', () => { this.menu = 'conversation'; this.setChoices(gossip[this.destination.id], [['Wróć', () => this.showMenu()]]); }],
+      ['Porozmawiaj', () => this.showShopConversation()],
+      ['Notatnik', () => this.showNotebook()],
       ['Wyjdź na ulicę', () => this.exit()]
     ]);
   }
@@ -235,6 +237,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   callResident(resident) {
+    if (resident.own) return this.showApartment();
     this.menu = 'intercom-call';
     this.setChoices(`Dzwonienie… ${resident.name}, mieszkanie ${resident.flat}.`, [
       ['Wybierz inną osobę', () => this.showIntercom()],
@@ -242,6 +245,73 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     ]);
     this.pendingCall = { resident, remaining: 1.5 };
     this.engine.audio.ringIntercom();
+  }
+
+  showShopConversation() {
+    this.showConversation(globalThis.LOCATION_DIALOGUES.shops[this.destination.id], () => this.showMenu());
+  }
+
+  showConversation(speaker, back, message = speaker.greeting) {
+    this.menu = 'conversation';
+    this.speaker = speaker;
+    this.setChoices(message, [
+      ...speaker.topics.map(([question, answer], index) => [question, () => {
+        this.notes.set(`${speaker.name}:${index}`, { title: `${speaker.name} · ${question}`, text: answer });
+        this.showConversation(speaker, back, answer);
+      }]),
+      ['Zakończ rozmowę', back]
+    ]);
+  }
+
+  showNotebook(page = 0) {
+    this.pendingCall = null;
+    this.speaker = null;
+    this.menu = 'notebook';
+    const notes = [...this.notes.values()];
+    const pageCount = Math.max(1, Math.ceil(notes.length / 3));
+    page = Math.max(0, Math.min(page, pageCount - 1));
+    this.setChoices(notes.length ? `Poznane informacje · strona ${page + 1} z ${pageCount}` : 'Notatnik jest pusty. Zapytaj mieszkańców lub sprzedawców o okolicę.', [
+      ...notes.slice(page * 3, page * 3 + 3).map(note => [note.title, () => {
+        this.menu = 'note';
+        this.setChoices(note.text, [['Wróć do notatnika', () => this.showNotebook(page)]]);
+      }]),
+      ...(page > 0 ? [['Poprzednia strona', () => this.showNotebook(page - 1)]] : []),
+      ...(page + 1 < pageCount ? [['Następna strona', () => this.showNotebook(page + 1)]] : []),
+      ['Wróć', () => this.showMenu()]
+    ]);
+  }
+
+  showApartment() {
+    if (this.destination.id !== 'tenement') return;
+    this.room = 'apartment';
+    this.pendingCall = null;
+    this.speaker = null;
+    this.menu = 'main';
+    this.setChoices('Moje mieszkanie, numer 5. Monitor kineskopowy cicho brzęczy. Na szafce stoi radiomagnetofon z dwiema kieszeniami na kasety.', [
+      ['Podejdź do komputera', () => this.inspectHome('computer')],
+      ['Obejrzyj radiomagnetofon', () => this.inspectHome('cassette')],
+      ['Notatnik', () => this.showNotebook()],
+      ['Wyjdź na klatkę', () => this.leaveApartment()]
+    ]);
+  }
+
+  inspectHome(object) {
+    this.menu = 'home-detail';
+    const details = {
+      computer: 'Stary komputer, osobna obudowa, klawiatura i głęboki monitor CRT. Na zielonym ekranie miga kursor. Obok leżą zapisane kartki i pudełka po kasetach.',
+      cassette: 'Jeden radiomagnetofon, dwie kieszenie: A do odtwarzania oryginału, B do nagrania kopii. Są przyciski PLAY, RECORD i przełącznik kopiowania. Tu będzie można przygotować własne nagranie.'
+    };
+    this.setChoices(details[object], [
+      ...(object === 'cassette' ? [['Jak przygotować kasety?', () => {
+        this.setChoices('Oryginał i kaseta docelowa muszą być osobno. Sprawdź ich opis i długość. Stefan z zielonego bloku zna ten sprzęt, a Zofia z niebieskiego wie, jak zabezpieczyć oryginały.', [['Wróć do radiomagnetofonu', () => this.inspectHome('cassette')]]);
+      }]] : []),
+      ['Wróć do pokoju', () => this.showApartment()]
+    ]);
+  }
+
+  leaveApartment() {
+    this.room = null;
+    this.showMenu();
   }
 
   showGoods(message, preserveSelection = false) {
@@ -280,11 +350,16 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   setChoices(message, choices, preserveSelection = false) {
     this.panel.hidden = false;
     const intercom = this.menu === 'intercom' || this.menu === 'intercom-call';
+    const atHome = this.room === 'apartment';
+    const talking = this.menu === 'conversation' && this.speaker;
     const residential = this.destination?.type === 'block';
     this.panel.classList.toggle('intercom-mode', intercom);
-    this.panel.setAttribute('aria-label', intercom ? 'Domofon przy klatce' : this.destination.title);
+    this.panel.classList.toggle('dialogue-mode', ['conversation', 'notebook'].includes(this.menu));
+    this.panel.classList.toggle('tenement-mode', this.destination.id === 'tenement');
+    const title = atHome ? 'MOJE MIESZKANIE' : this.destination.title;
+    this.panel.setAttribute('aria-label', intercom ? 'Domofon przy klatce' : talking ? this.speaker.name : title);
     this.panel.querySelector('.shop-heading > span:first-child').innerHTML = intercom
-      ? 'DOMOFON <small>Spis mieszkańców</small>' : `${this.destination.title} <small>${this.destination.subtitle}</small>`;
+      ? 'DOMOFON <small>Spis mieszkańców</small>' : talking ? `${this.speaker.name} <small>Rozmowa</small>` : `${title} <small>${atHome ? 'Kamienica · mieszkanie 5' : this.destination.subtitle}</small>`;
     const wallet = this.panel.querySelector('.shop-wallet');
     wallet.hidden = residential;
     const labels = { bread: 'chleb', orangeade: 'oranżada', newspaper: 'gazeta', crossword: 'krzyżówki', apples: 'jabłka', ticket: 'bilet' };
@@ -409,7 +484,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   drawInterior(ctx, width = this.engine.virtualWidth, height = this.engine.virtualHeight) {
     ctx.fillStyle = '#201b16';
     ctx.fillRect(0, 0, width, height);
-    const image = this.images.get(this.destination?.id) ?? this.interiorImage;
+    const image = this.images.get(this.room === 'apartment' ? 'apartment-05' : this.destination?.id) ?? this.interiorImage;
     if (!image.complete || !image.naturalWidth) {
       ctx.fillStyle = '#f2e5c5';
       ctx.font = `${Math.max(12, Math.round(width / 40))}px monospace`;
@@ -424,5 +499,24 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     const drawHeight = Math.round(image.naturalHeight * scale);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(image, Math.round((width - drawWidth) / 2), Math.round((height - drawHeight) / 2), drawWidth, drawHeight);
+    if (this.destination.id === 'tenement') this.drawInteriorHero(ctx, width, height, drawWidth, drawHeight);
+  }
+
+  drawInteriorHero(ctx, width, height, drawWidth, drawHeight) {
+    const character = this.engine.character;
+    const frames = character.animations.idle;
+    const frame = frames?.[Math.floor(this.elapsed * 7) % frames.length];
+    if (!frame) return;
+    const scale = Math.max(1, Math.floor(drawHeight * 0.52 / character.height));
+    const heroWidth = character.width * scale;
+    const left = Math.round((width - drawWidth) / 2 + drawWidth * 0.16 - heroWidth / 2);
+    const feet = Math.round((height - drawHeight) / 2 + drawHeight * 0.92);
+    const top = feet - (character.footOffsetY ?? character.height - 2) * scale;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = 'rgba(12, 15, 14, 0.32)';
+    ctx.fillRect(left + Math.round(heroWidth * 0.30), feet, Math.round(heroWidth * 0.4), Math.max(2, scale));
+    ctx.drawImage(frame, left, top, heroWidth, character.height * scale);
+    ctx.restore();
   }
 };

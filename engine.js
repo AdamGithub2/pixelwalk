@@ -1,6 +1,7 @@
 import './pedestrian_assets.js';
 import './pedestrians.js';
 import './entry_assets.js';
+import './location_dialogues.js';
 import './building_interaction.js';
 import './game_audio.js';
 import './moving_attack.js';
