@@ -26,6 +26,38 @@
     <button class="floating-btn" id="btn-open-drawer" title="Otwórz ustawienia i klatki">⚙️ OPCJE & KLATKI</button>
   </div>
 
+  <!-- WIRTUALNY GAMEPAD / TOUCH CONTROLS DLA URZĄDZEŃ MOBILNYCH -->
+  <div class="touch-controls-layer" id="touch-controls">
+    <!-- LEWA STRONA: KIERUNEK + BIEG -->
+    <div class="touch-cluster touch-cluster-left">
+      <button class="touch-btn touch-btn-dir" id="btn-touch-left" aria-label="W lewo">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      </button>
+      <button class="touch-btn touch-btn-run" id="btn-touch-run" aria-label="Bieg">
+        <span>RUN</span>
+      </button>
+      <button class="touch-btn touch-btn-dir" id="btn-touch-right" aria-label="W prawo">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </button>
+    </div>
+
+    <!-- PRAWA STRONA: AKCJE (SKOK, ATAK, SPECJAL) -->
+    <div class="touch-cluster touch-cluster-right">
+      <button class="touch-btn touch-btn-action touch-btn-special" id="btn-touch-special" aria-label="Specjal">
+        <span class="icon">⚡</span>
+        <span class="lbl">SP</span>
+      </button>
+      <button class="touch-btn touch-btn-action touch-btn-attack" id="btn-touch-attack" aria-label="Atak">
+        <span class="icon">⚔️</span>
+        <span class="lbl">ATK</span>
+      </button>
+      <button class="touch-btn touch-btn-action touch-btn-jump" id="btn-touch-jump" aria-label="Skok">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+        <span class="lbl">SKOK</span>
+      </button>
+    </div>
+  </div>
+
   <!-- TŁO PRZYCIEMNIAJĄCE PODCZAS OTWARCIA DRAWERA -->
   <div class="drawer-backdrop" id="drawer-backdrop"></div>
 
@@ -429,7 +461,6 @@ class PixelBackground {
     });
 
     this.stars = [];
-    this.smokeParticles = [];
     this.buildingImages = [];
     this.skyscraperImages = [];
 
@@ -506,18 +537,6 @@ class PixelBackground {
         y: Math.floor(Math.random() * 75),
         brightness: Math.random(),
         speed: 0.5 + Math.random() * 1.5
-      });
-    }
-
-    // Dym z kominów
-    for (let i = 0; i < 22; i++) {
-      this.smokeParticles.push({
-        x: Math.random() * this.midCityLoopWidth,
-        y: 65 + Math.random() * 10,
-        vy: -0.2 - Math.random() * 0.25,
-        vx: 0.15 + Math.random() * 0.1,
-        life: Math.random() * 40,
-        maxLife: 35 + Math.random() * 30
       });
     }
   }
@@ -765,24 +784,6 @@ class PixelBackground {
       targetCtx.drawImage(this.midCityCanvas, bLoop - bOffset, 0);
     }
 
-    // Dym z kominów
-    this.smokeParticles.forEach(sp => {
-      sp.y += sp.vy;
-      sp.x += sp.vx;
-      sp.life++;
-      if (sp.life > sp.maxLife || sp.y < 35) {
-        sp.y = 65 + Math.random() * 5;
-        sp.x = (camX * 0.45) + Math.random() * 320;
-        sp.life = 0;
-      }
-      const px = Math.floor(sp.x - camX * 0.45);
-      if (px >= 0 && px < this.width) {
-        const alpha = Math.max(0, 1 - sp.life / sp.maxLife);
-        const col = alpha > 0.6 ? '#6e4f73' : (alpha > 0.3 ? '#452e4a' : '#231526');
-        this.p(targetCtx, px, Math.floor(sp.y), 2, 2, col);
-      }
-    });
-
     // 4. CZWARTA WARSTWA: Pierwszy plan - chodnik, kałuże, latarnie, kot (Pętla 640px)
     const fgLoop = this.foregroundLoopWidth; // 640
     const fgOffset = Math.floor(camX % fgLoop);
@@ -910,6 +911,100 @@ class AnimationEngine {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
     });
+
+    this.initTouchControls();
+  }
+
+  initTouchControls() {
+    const bindTouchBtn = (elId, onDown, onUp) => {
+      const el = document.getElementById(elId);
+      if (!el) return;
+
+      const handleDown = (e) => {
+        if (e.cancelable) e.preventDefault();
+        el.classList.add('active');
+        onDown();
+      };
+      const handleUp = (e) => {
+        if (e.cancelable) e.preventDefault();
+        el.classList.remove('active');
+        if (onUp) onUp();
+      };
+
+      el.addEventListener('pointerdown', handleDown, { passive: false });
+      el.addEventListener('pointerup', handleUp, { passive: false });
+      el.addEventListener('pointercancel', handleUp, { passive: false });
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+
+    // 1. Lewo
+    bindTouchBtn('btn-touch-left',
+      () => { this.keys['KeyA'] = true; },
+      () => { this.keys['KeyA'] = false; }
+    );
+
+    // 2. Prawo
+    bindTouchBtn('btn-touch-right',
+      () => { this.keys['KeyD'] = true; },
+      () => { this.keys['KeyD'] = false; }
+    );
+
+    // 3. Bieg (Shift) - możliwość kliknięcia do włączenia/wyłączenia sprintu
+    let runToggled = false;
+    const btnRun = document.getElementById('btn-touch-run');
+    if (btnRun) {
+      btnRun.addEventListener('pointerdown', (e) => {
+        if (e.cancelable) e.preventDefault();
+        runToggled = !runToggled;
+        this.keys['ShiftLeft'] = runToggled;
+        btnRun.classList.toggle('active', runToggled);
+      }, { passive: false });
+    }
+
+    // 4. Skok
+    bindTouchBtn('btn-touch-jump',
+      () => { if (this.player.isGrounded) this.jump(); }
+    );
+
+    // 5. Atak
+    bindTouchBtn('btn-touch-attack',
+      () => { if (this.player.currentAnim !== 'attack') this.triggerAttack(); }
+    );
+
+    // 6. Specjal
+    bindTouchBtn('btn-touch-special',
+      () => { if (this.player.currentAnim !== 'special') this.triggerSpecial(); }
+    );
+
+    // Obsługa dotyku bezpośrednio na płótnie gry
+    const canvas = this.canvas;
+    let touchMoveActive = false;
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const t = e.touches[0];
+      const screenW = window.innerWidth;
+
+      if (t.clientX < screenW * 0.4) {
+        this.keys['KeyA'] = true;
+        this.keys['KeyD'] = false;
+        touchMoveActive = true;
+      } else if (t.clientX > screenW * 0.6) {
+        this.keys['KeyA'] = false;
+        this.keys['KeyD'] = true;
+        touchMoveActive = true;
+      }
+    }, { passive: true });
+
+    const endCanvasTouch = () => {
+      if (touchMoveActive) {
+        this.keys['KeyA'] = false;
+        this.keys['KeyD'] = false;
+        touchMoveActive = false;
+      }
+    };
+    canvas.addEventListener('touchend', endCanvasTouch, { passive: true });
+    canvas.addEventListener('touchcancel', endCanvasTouch, { passive: true });
   }
 
   setAnimation(animName, loop = true) {
