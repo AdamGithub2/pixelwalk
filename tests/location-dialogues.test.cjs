@@ -9,6 +9,7 @@ function setup(id = 'tenement') {
     destination: { id, type: 'block', description: 'Klatka.' },
     room: null, state: 'inside', elapsed: 0, notes: new Map(), pendingCall: null,
     engine: { audio: { setWalking() {}, ringIntercom() {} } },
+    interiorHero: { enter() {}, update() {}, walkTo() {} },
     setChoices(message, choices) { this.message = message; this.choices = choices; }
   });
   return interaction;

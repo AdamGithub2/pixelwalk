@@ -7,6 +7,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.money = 20;
     this.inventory = { bread: 0, orangeade: 0, newspaper: 0, crossword: 0, apples: 0, ticket: 0 };
     this.frames = new Map();
+    this.interiorHero = new globalThis.InteriorHero();
     this.entryAtlas = null;
     this.entryReady = new Promise(resolve => {
       const atlas = new Image();
@@ -149,6 +150,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.destination = null;
     this.room = null;
     this.speaker = null;
+    this.interiorHero.scene = null;
     this.pendingCall = null;
     this.panel.hidden = this.prompt.hidden = true;
     e.keys = {};
@@ -165,6 +167,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       return false;
     }
     this.elapsed += dt;
+    if (this.state === 'inside' && this.destination?.id === 'tenement') this.interiorHero.update(dt);
     const walking = this.state === 'entering' && this.elapsed >= 0.35 && this.elapsed < 1.85;
     this.engine.audio.setWalking(walking);
     if (this.state === 'entering' && this.elapsed >= 2.25) {
@@ -202,6 +205,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   showStairwell(message = this.destination.description) {
+    if (this.destination.id === 'tenement') this.interiorHero.enter('tenement:stairs');
     this.menu = 'main';
     this.setChoices(message, [
       ...(this.destination.id === 'tenement' ? [['Mieszkanie 5 · moje mieszkanie', () => this.showApartment()]] : []),
@@ -283,6 +287,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
 
   showApartment() {
     if (this.destination.id !== 'tenement') return;
+    this.interiorHero.enter('tenement:apartment');
     this.room = 'apartment';
     this.pendingCall = null;
     this.speaker = null;
@@ -296,6 +301,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   inspectHome(object) {
+    this.interiorHero.walkTo(object === 'computer' ? 0.19 : 0.23);
     this.menu = 'home-detail';
     const details = {
       computer: 'Stary komputer, osobna obudowa, klawiatura i głęboki monitor CRT. Na zielonym ekranie miga kursor. Obok leżą zapisane kartki i pudełka po kasetach.',
@@ -503,6 +509,8 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   drawInteriorHero(ctx, width, height, drawWidth, drawHeight) {
+    this.interiorHero.enter(`${this.destination.id}:${this.room ?? 'stairs'}`);
+    if (this.engine.character.currentSkin === 'urban_hero' && this.interiorHero.draw(ctx, width, height, drawWidth, drawHeight)) return;
     const character = this.engine.character;
     const frames = character.animations.idle;
     const frame = frames?.[Math.floor(this.elapsed * 7) % frames.length];

@@ -22,7 +22,9 @@ Dziewięć nowych grafik rastrowych pochodzi z wbudowanego generatora `image_gen
 
 W starej kamienicy pozycja **5** na liście domofonu to **Moje mieszkanie**. Wejście jest też dostępne bezpośrednio w menu klatki. Pokój ma wygenerowane tło `assets/interiors/apartment-05.png`: komputer z monitorem CRT, osobną obudową i klawiaturą oraz jeden radiomagnetofon z dwiema kieszeniami na kasety. Prompt wbudowanego `image_gen` zapisano w `assets/interiors/apartment-05-prompt.txt`. Komputer i radio można obejrzeć; wyposażenie przygotowuje miejsce pod przyszłą misję przegrywania, sama misja nie jest jeszcze uruchomiona.
 
-Większa postać bohatera jest rysowana na tle klatki kamienicy i mieszkania 5 z istniejących klatek idle. **Esc** z menu mieszkania wraca na klatkę, a kolejny **Esc** na ulicę. Testy dialogów i powrotów: `node --test tests/location-dialogues.test.cjs`.
+We wnętrzu kamienicy i mieszkania 5 bohater korzysta z osobnego, szczegółowego arkusza pixel art `assets/interior-hero/hero-atlas-source.png`, wygenerowanego wbudowanym `image_gen` na podstawie `hero_hoodie_cropped.png`. Patrzy w prawo i jest wyższy; cztery klatki stania obejmują oddech oraz krótkie mrugnięcie, a cztery klatki chodu obsługują wejście i podejście do komputera/radia. Podłoga pozostaje na jednej wysokości we wszystkich klatkach. Grafiki i animacje postaci na ulicy są niezależne od tej wersji.
+
+`interior_hero.js` obsługuje animację i położenie we wnętrzu. `python build_interior_hero_assets.py` mierzy prostokąty ośmiu wygenerowanych klatek i zapisuje `interior_hero_assets.js`, bez przerysowywania grafiki źródłowej. Prompt: `assets/interior-hero/generation-prompt.txt`. **Esc** z menu mieszkania wraca na klatkę, a kolejny **Esc** na ulicę. Testy: `node --test tests/interior-hero.test.cjs tests/location-dialogues.test.cjs`.
 
 Projekt dedykowany animacji klatkowej w stylu **Pixel Art** bez użycia SVG i bez wektorowych transformacji, które niszczą charakterystyczną ostrość pikseli.
 
