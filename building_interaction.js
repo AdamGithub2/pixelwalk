@@ -5,7 +5,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.state = 'street';
     this.elapsed = 0;
     this.money = 20;
-    this.inventory = { bread: 0, orangeade: 0 };
+    this.inventory = { bread: 0, orangeade: 0, newspaper: 0, crossword: 0, apples: 0, ticket: 0 };
     this.frames = new Map();
     this.entryAtlas = null;
     this.entryReady = new Promise(resolve => {
@@ -16,12 +16,27 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     });
     this.interiorImage = new Image();
     this.interiorImage.src = './Nostalgiczny sklep Społem w pikselach.png';
-    this.blockImage = new Image();
-    this.blockImage.src = './Retro Pixel-Art Entrance with Flowering Balconies.png';
     this.destinations = [
-      { id: 'spolem', x: 144, width: 19, prompt: '↑ / W · Wejdź do Społem' },
-      { id: 'block', x: 254, width: 15, prompt: '↑ / W · Podejdź do klatki · Domofon' }
+      { id: 'tenement', type: 'block', x: 45, width: 12, title: 'KAMIENICA', subtitle: 'Stara klatka', asset: 'stairwell-01', description: 'Drewniane stopnie skrzypią. Bordowa lamperia jest przetarta, a pod oknem odchodzi tynk.' },
+      { id: 'spolem', x: 144, width: 19, title: 'SPOŁEM', subtitle: 'Sklep osiedlowy' },
+      { id: 'block', type: 'block', x: 254, width: 15, title: 'BLOK NR 2', subtitle: 'Zielona klatka', asset: 'stairwell-02', description: 'Zapach wilgotnego lastryka. Zielona farba odpryskuje z poręczy, nad skrzynkami brzęczy świetlówka.' },
+      { id: 'ruch', x: 367, width: 12, title: 'RUCH', subtitle: 'Prasa i drobiazgi', asset: 'ruch' },
+      { id: 'block-blue', type: 'block', x: 454, width: 14, title: 'BLOK NR 3', subtitle: 'Niebieska klatka', asset: 'stairwell-03', description: 'Niebieska lamperia pamięta lepsze czasy. Pod oknem stoi stary kaloryfer, na tablicy wiszą pożółkłe ogłoszenia.' },
+      { id: 'cinema', x: 630, width: 28, title: 'KINO', subtitle: 'Kasa biletowa', asset: 'cinema' },
+      { id: 'market', x: 868, width: 17, title: 'TARG', subtitle: 'Warzywniak pod dachem', asset: 'market' },
+      { id: 'block-yellow', type: 'block', x: 1216, width: 13, title: 'BLOK NR 4', subtitle: 'Żółta klatka', asset: 'stairwell-04', description: 'Musztardowa farba, chłodne lastryko i ciężkie drzwi do piwnicy. W rogu widać ślady dawnego zacieku.' },
+      { id: 'tower', type: 'block', x: 1420, width: 13, title: 'PUNKTOWIEC', subtitle: 'Klatka z windą', asset: 'stairwell-05', description: 'Za porysowanymi drzwiami buczy stara winda. Rdzawa lamperia i gołe przewody pod sufitem.' },
+      { id: 'block-turquoise', type: 'block', x: 1579, width: 13, title: 'BLOK NR 6', subtitle: 'Turkusowa klatka', asset: 'stairwell-06', description: 'Spod turkusowej farby wychodzi beż. Wgniecione skrzynki, zardzewiała rura i wydeptane stopnie.' }
     ];
+    this.images = new Map();
+    for (const destination of this.destinations) {
+      destination.prompt = `↑ / W · ${destination.type === 'block' ? 'Wejdź do klatki' : 'Wejdź: ' + destination.title}`;
+      if (destination.asset) {
+        const image = new Image();
+        image.src = `./assets/interiors/${destination.asset}.png`;
+        this.images.set(destination.id, image);
+      }
+    }
     this.destination = null;
     this.pendingCall = null;
     this.residents = [
@@ -171,7 +186,9 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   showMenu(message = 'Dzień dobry! Co podać?') {
-    if (this.destination?.id === 'block') return this.showIntercom();
+    this.pendingCall = null;
+    if (this.destination?.type === 'block') return this.showStairwell();
+    if (this.destination?.id !== 'spolem') return this.showLocalMenu();
     this.menu = 'main';
     this.setChoices(message, [
       ['Zobacz towary', () => this.showGoods()],
@@ -180,12 +197,40 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     ]);
   }
 
-  showIntercom() {
+  showStairwell(message = this.destination.description) {
     this.menu = 'main';
+    this.setChoices(message, [
+      ['Domofon · spis mieszkańców', () => this.showIntercom()],
+      ['Obejrzyj klatkę', () => this.showStairwell(this.destination.description + ' Na półpiętrze słychać radio zza zamkniętych drzwi.')],
+      ['Wyjdź na ulicę', () => this.exit()]
+    ]);
+  }
+
+  showLocalMenu() {
+    this.menu = 'main';
+    const messages = {
+      ruch: 'Dzień dobry. Jest dzisiejsza prasa i krzyżówki. Co podać?',
+      cinema: 'Wieczorny seans o dziewiętnastej. Bilety kupisz tutaj, w kasie.',
+      market: 'Jabłka prosto z sadu! Proszę podejść, proszę wybierać.'
+    };
+    const gossip = {
+      ruch: 'Gazety przywożą o świcie. Krzyżówki szybko znikają, sąsiedzi kupują je do popołudniowej herbaty.',
+      cinema: 'Plakaty zmieniamy ręcznie. Proszę zachować bilet — bileter sprawdza go przy sali.',
+      market: 'Dzisiaj najlepsze jabłka. Skrzynki stoją od rana, a w hali jak zwykle trochę ciągnie.'
+    };
+    this.setChoices(messages[this.destination.id], [
+      [this.destination.id === 'cinema' ? 'Kup bilet' : 'Zobacz towary', () => this.showGoods()],
+      ['Porozmawiaj', () => { this.menu = 'conversation'; this.setChoices(gossip[this.destination.id], [['Wróć', () => this.showMenu()]]); }],
+      ['Wyjdź na ulicę', () => this.exit()]
+    ]);
+  }
+
+  showIntercom() {
+    this.menu = 'intercom';
     this.pendingCall = null;
     this.setChoices('Wybierz osobę, do której chcesz zadzwonić domofonem.', [
       ...this.residents.map(resident => [`${resident.name} · m. ${resident.flat}`, () => this.callResident(resident)]),
-      ['Wróć na ulicę', () => this.exit()]
+      ['Wróć do klatki', () => this.showMenu()]
     ]);
   }
 
@@ -199,8 +244,25 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.engine.audio.ringIntercom();
   }
 
-  showGoods(message = 'Proszę wybierać. Wszystko świeżutkie!', preserveSelection = false) {
+  showGoods(message, preserveSelection = false) {
     this.menu = 'goods';
+    message ??= {
+      spolem: 'Proszę wybierać. Wszystko świeżutkie!',
+      ruch: 'Dzisiejsza gazeta i nowy numer krzyżówek. Proszę wybierać.',
+      cinema: 'Jeden bilet na wieczorny seans kosztuje 8 zł.',
+      market: 'Torba jabłek kosztuje 5 zł. Prosto z sadu!'
+    }[this.destination.id];
+    if (this.destination.id !== 'spolem') {
+      const goods = {
+        ruch: [['Gazeta · 2 zł', 'newspaper', 2, 'Gazeta trafia do plecaka.'], ['Krzyżówki · 3 zł', 'crossword', 3, 'Krzyżówki trafiają do plecaka.']],
+        cinema: [['Bilet na seans · 8 zł', 'ticket', 8, 'Papierowy bilet trafia do plecaka.']],
+        market: [['Jabłka · 5 zł', 'apples', 5, 'Torba jabłek trafia do plecaka.']]
+      };
+      return this.setChoices(message, [
+        ...goods[this.destination.id].map(([label, item, price, reply]) => [label, () => this.buy(item, price, reply)]),
+        ['Wróć', () => this.showMenu()]
+      ], preserveSelection);
+    }
     this.setChoices(message, [
       ['Chleb · 4 zł', () => this.buy('bread', 4, 'Chleb trafia do plecaka.')],
       ['Oranżada · 3 zł', () => this.buy('orangeade', 3, 'Oranżada trafia do plecaka.')],
@@ -217,14 +279,17 @@ globalThis.BuildingInteraction = class BuildingInteraction {
 
   setChoices(message, choices, preserveSelection = false) {
     this.panel.hidden = false;
-    const intercom = this.destination?.id === 'block';
+    const intercom = this.menu === 'intercom' || this.menu === 'intercom-call';
+    const residential = this.destination?.type === 'block';
     this.panel.classList.toggle('intercom-mode', intercom);
-    this.panel.setAttribute('aria-label', intercom ? 'Domofon przy klatce' : 'Sklep Społem');
+    this.panel.setAttribute('aria-label', intercom ? 'Domofon przy klatce' : this.destination.title);
     this.panel.querySelector('.shop-heading > span:first-child').innerHTML = intercom
-      ? 'DOMOFON <small>Spis mieszkańców</small>' : 'SPOŁEM <small>Sklep osiedlowy</small>';
+      ? 'DOMOFON <small>Spis mieszkańców</small>' : `${this.destination.title} <small>${this.destination.subtitle}</small>`;
     const wallet = this.panel.querySelector('.shop-wallet');
-    wallet.hidden = intercom;
-    wallet.textContent = `${this.money} zł · Plecak: ${this.inventory.bread} chleb, ${this.inventory.orangeade} oranżada`;
+    wallet.hidden = residential;
+    const labels = { bread: 'chleb', orangeade: 'oranżada', newspaper: 'gazeta', crossword: 'krzyżówki', apples: 'jabłka', ticket: 'bilet' };
+    const contents = Object.entries(this.inventory).filter(([, count]) => count).map(([item, count]) => `${count} × ${labels[item]}`);
+    wallet.textContent = `${this.money} zł · Plecak: ${contents.join(', ') || 'pusty'}`;
     this.panel.querySelector('.shop-help').textContent = intercom
       ? '1–5 mieszkanie · ↑ ↓ wybór · Enter zatwierdź · Esc powrót / wyjście'
       : '↑ ↓ wybór · Enter zatwierdź · Esc powrót / wyjście';
@@ -344,8 +409,15 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   drawInterior(ctx, width = this.engine.virtualWidth, height = this.engine.virtualHeight) {
     ctx.fillStyle = '#201b16';
     ctx.fillRect(0, 0, width, height);
-    const image = this.destination?.id === 'block' ? this.blockImage : this.interiorImage;
-    if (!image.complete || !image.naturalWidth) return;
+    const image = this.images.get(this.destination?.id) ?? this.interiorImage;
+    if (!image.complete || !image.naturalWidth) {
+      ctx.fillStyle = '#f2e5c5';
+      ctx.font = `${Math.max(12, Math.round(width / 40))}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Wczytywanie wnętrza…', width / 2, height / 3);
+      ctx.textAlign = 'start';
+      return;
+    }
     // Draw the original at display resolution, preserving its full 4:3 composition.
     const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
     const drawWidth = Math.round(image.naturalWidth * scale);

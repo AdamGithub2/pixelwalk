@@ -64,9 +64,9 @@ canvas, img {
 }
 
 .building-prompt[hidden], .shop-dialog[hidden] { display: none; }
-.shop-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: #eac37b; }
+.shop-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; color: #eac37b; }
 .shop-heading small { color: #c2c6ac; margin-left: 12px; font-size: 18px; }
-.shop-wallet { font-size: 18px; text-align: right; }
+.shop-wallet { font-size: 18px; text-align: right; overflow-wrap: anywhere; }
 .shop-message { margin: 10px 0 12px; min-height: 1.3em; }
 .shop-choices { display: flex; gap: 8px; }
 .intercom-mode .shop-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }

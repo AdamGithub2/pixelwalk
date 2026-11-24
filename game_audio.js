@@ -3,13 +3,25 @@ globalThis.GameAudio = class GameAudio {
     this.music = new Audio('./45.5 clean (Cover).mp3');
     this.steps = new Audio('./steps.wav');
     this.jumpSound = new Audio('./jump.wav');
+    this.voices = [
+      new Audio('./ElevenLabs_2026-11-24T14_06_38_Maciej - Rich, Moody and Deep_pvc_s50_sim75_v4.mp3'),
+      new Audio('./ElevenLabs_2026-11-24T14_07_45_Maciej - Rich, Moody and Deep_pvc_s50_sim75_v4.mp3')
+    ];
+    this.currentVoice = null;
+    this.pendingPlays = new Map();
     this.music.loop = true;
     this.steps.loop = true;
     this.jumpSound.loop = false;
     this.music.volume = 0.28;
     this.steps.volume = 0.5;
     this.jumpSound.volume = 0.6;
-    this.tracks = [this.music, this.steps, this.jumpSound];
+    this.voices.forEach(voice => {
+      voice.volume = 0.85;
+      voice.onended = voice.onerror = () => {
+        if (this.currentVoice === voice) this.stopVoice();
+      };
+    });
+    this.tracks = [this.music, this.steps, this.jumpSound, ...this.voices];
     this.tracks.forEach(track => { track.preload = 'auto'; });
     this.unlocked = false;
     this.muted = false;
@@ -18,12 +30,14 @@ globalThis.GameAudio = class GameAudio {
 
     // Capture runs before the same gesture reaches the jump/touch controls.
     const unlock = () => {
-      if (this.unlocked) return;
       this.unlocked = true;
+      this.active = !document.hidden;
       this.resume();
     };
     window.addEventListener('pointerdown', unlock, { capture: true });
     window.addEventListener('keydown', unlock, { capture: true });
+    // Retry when loading finishes, including after a slow first play attempt.
+    this.music.addEventListener('canplay', () => this.resume());
     window.addEventListener('blur', () => this.suspend());
     window.addEventListener('focus', () => { this.active = !document.hidden; this.resume(); });
     document.addEventListener('visibilitychange', () => {
@@ -33,11 +47,36 @@ globalThis.GameAudio = class GameAudio {
   }
 
   play(track) {
-    if (this.unlocked && this.active && !this.muted) {
-      // A browser may deny playback until a user gesture; keep input responsive.
-      const result = track.play();
-      if (result) result.catch(() => {});
+    if (!this.unlocked || !this.active || this.muted) return Promise.resolve(false);
+    if (this.pendingPlays.has(track)) return this.pendingPlays.get(track);
+    let result;
+    try { result = track.play(); }
+    catch { return Promise.resolve(false); }
+    const pending = Promise.resolve(result).then(() => true, () => false)
+      .finally(() => this.pendingPlays.delete(track));
+    this.pendingPlays.set(track, pending);
+    return pending;
+  }
+
+  playPasserby() {
+    if (!this.unlocked || !this.active || this.muted || this.currentVoice) return false;
+    const voice = this.voices[Math.floor(Math.random() * this.voices.length)];
+    this.currentVoice = voice;
+    voice.currentTime = 0;
+    this.music.volume = 0.10;
+    this.play(voice).then(played => {
+      if (!played && this.currentVoice === voice) this.stopVoice();
+    });
+    return true;
+  }
+
+  stopVoice() {
+    if (this.currentVoice) {
+      this.currentVoice.pause();
+      this.currentVoice.currentTime = 0;
+      this.currentVoice = null;
     }
+    this.music.volume = 0.28;
   }
 
   stopSteps() {
@@ -85,19 +124,23 @@ globalThis.GameAudio = class GameAudio {
 
   suspend() {
     this.active = false;
+    this.stopVoice();
     this.tracks.forEach(track => track.pause());
     this.stopSteps();
     this.walking = false;
   }
 
   resume() {
-    this.play(this.music);
-    if (this.walking) this.play(this.steps);
+    if (this.music.paused) this.play(this.music);
+    if (this.walking && this.steps.paused) this.play(this.steps);
   }
 
   toggleMuted() {
     this.muted = !this.muted;
-    if (this.muted) this.tracks.forEach(track => track.pause());
+    if (this.muted) {
+      this.stopVoice();
+      this.tracks.forEach(track => track.pause());
+    }
     else this.resume();
     return this.muted;
   }

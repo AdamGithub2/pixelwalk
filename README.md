@@ -8,13 +8,21 @@ Opcje wybierzesz myszą, dotykiem, klawiszami **1–3** lub **↑ / ↓ + Enter*
 
 Wejście bohatera korzysta z 4 wygenerowanych klatek obrotu oraz 4 klatek chodu tyłem, opartych na `hero_tight.png`. Źródło i prompt imagegen znajdują się w `assets/entry/hero-entry-source.png` i `assets/entry/generation-prompt.txt`. `python build_entry_assets.py` pakuje klatki do `entry_assets.js`. Postać obraca się przez 0,35 s, potem idzie w stronę drzwi i maleje; animacja działa też przy wejściu do bloku.
 
-### Klatka i domofon
+### Pozostałe wejścia, klatki i domofony
 
-W szarym bloku bezpośrednio po prawej stronie Społem jest drugie wejście (**↑ / W** lub przycisk na ekranie). Pojawia się obraz `Retro Pixel-Art Entrance with Flowering Balconies.png` oraz lista pięciu mieszkańców. **1–5**, mysz lub dotyk wybierają osobę; po dźwięku domofonu wyświetla się odpowiedź albo informacja, że nikt nie odbiera. **Esc** wraca do listy, a z listy na ulicę. Wyjście anuluje trwające dzwonienie.
+Na panoramie jest dziesięć wejść: Społem, Ruch, kino, targ i sześć budynków mieszkalnych. Podejdź do drzwi i naciśnij **↑ / W** albo kliknij podpowiedź. Ruch sprzedaje gazety i krzyżówki, kino papierowe bilety, a targ jabłka. Zakupy korzystają ze wspólnego portfela i plecaka; brak pieniędzy blokuje zakup.
+
+Każdy budynek mieszkalny ma inną wygenerowaną klatkę: kamienica z drewnianymi schodami, blok zielony, niebieski, żółty, punktowiec z windą i blok turkusowy. Wnętrza mają przetarte lamperie, odpryski, zacieki, wytarte lastryko i stare skrzynki. W menu klatki można obejrzeć wnętrze lub wybrać domofon. **1–5**, mysz lub dotyk wybierają mieszkańca; po dźwięku wyświetla się odpowiedź albo informacja, że nikt nie odbiera. **Esc** wraca do menu klatki, a z niego na ulicę. Powrót i wyjście anulują dzwonienie.
+
+Dziewięć nowych grafik rastrowych pochodzi z wbudowanego generatora `image_gen`; zapisano je w `assets/interiors/` (`stairwell-01.png`–`stairwell-06.png`, `ruch.png`, `cinema.png`, `market.png`). Pełne prompty są w `assets/interiors/generation-prompts.json`. Grafiki są ładowane z lokalnych plików zarówno przez HTTP, jak i w samodzielnym `index.html` otwieranym przez `file://`.
 
 Projekt dedykowany animacji klatkowej w stylu **Pixel Art** bez użycia SVG i bez wektorowych transformacji, które niszczą charakterystyczną ostrość pikseli.
 
 ### Przechodnie i pościg
+
+Gdy spokojnie idący dresik zbliży się do bohatera, odtwarzany jest losowo jeden z dwóch dodanych plików MP3 ElevenLabs. Każdy przechodzień mówi raz; między wypowiedziami jest co najmniej 6 sekund przerwy, a głosy nie nakładają się. Muzyka przycicha na czas tekstu. Wyciszenie i opuszczenie karty zatrzymują głos. Przechodnie nie mówią do bohatera przebywającego we wnętrzu ani podczas ucieczki.
+
+Muzyka startuje po kliknięciu, dotknięciu lub klawiszu. Jeśli przeglądarka odrzuci pierwszą próbę, kolejne gesty ponawiają odtwarzanie; wznowienie działa też po załadowaniu muzyki i powrocie do karty. Testy dźwięku i przechodniów: `node --test tests/game_audio.test.cjs tests/pedestrians.test.cjs`.
 
 Co kilka sekund na ulicy pojawiają się przechodnie w niebieskich ortalionowych dresach, niektórzy z kijem baseballowym. Sami nie atakują. Trafienie klawiszem **F / J** lub przyciskiem **ATK** powoduje ucieczkę. Dogonisz ich sprintem (**Shift + ruch**); trzecie celne uderzenie przewraca postać. Jeden zamach może trafić danego przechodnia tylko raz. Trzy znaczniki nad trafionym przechodniem pokazują liczbę otrzymanych ciosów.
 

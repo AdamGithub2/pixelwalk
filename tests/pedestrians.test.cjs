@@ -115,3 +115,39 @@ test('ambient spawning stays bounded and downed characters eventually disappear'
   crowd.update(0.01);
   assert.ok(!crowd.people.includes(person));
 });
+
+test('nearby walkers speak once, with a cooldown and no speech from interiors or fleeing people', () => {
+  const { engine, crowd } = setup();
+  let lines = 0;
+  engine.audio = { playPasserby: () => { lines++; return true; } };
+  const person = crowd.spawn(145, 1);
+  engine.building.active = true;
+  crowd.update(0.01);
+  assert.equal(lines, 0);
+  engine.building.active = false;
+  crowd.update(0.01);
+  crowd.update(0.01);
+  assert.equal(lines, 1);
+  assert.equal(person.hasSpoken, true);
+  const next = crowd.spawn(145, 1);
+  crowd.update(0.01);
+  assert.equal(lines, 1);
+  crowd.voiceCooldown = 0;
+  next.state = 'flee';
+  crowd.update(0.01);
+  assert.equal(lines, 1);
+  next.state = 'walk';
+  crowd.update(0.01);
+  assert.equal(lines, 2);
+});
+
+test('unavailable audio does not consume a walkers line', () => {
+  const { engine, crowd } = setup();
+  engine.audio = { playPasserby: () => false };
+  const person = crowd.spawn(145);
+  crowd.update(0.01);
+  assert.equal(person.hasSpoken, false);
+  engine.audio.playPasserby = () => true;
+  crowd.update(0.01);
+  assert.equal(person.hasSpoken, true);
+});

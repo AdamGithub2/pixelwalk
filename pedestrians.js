@@ -27,12 +27,13 @@ globalThis.Pedestrians = class Pedestrians {
     this.swing = null;
     this.nextId = 1;
     this.initialSpawn = true;
+    this.voiceCooldown = 0;
   }
 
   spawn(x, facing = -1, hasBat = Math.random() < 0.5) {
     const person = {
       id: this.nextId++, x, facing, hasBat, state: 'walk', hits: 0,
-      age: 0, phase: Math.random() * 4, stun: 0, flash: 0, alert: 0, downTime: 0
+      age: 0, phase: Math.random() * 4, stun: 0, flash: 0, alert: 0, downTime: 0, hasSpoken: false
     };
     this.people.push(person);
     return person;
@@ -45,6 +46,7 @@ globalThis.Pedestrians = class Pedestrians {
 
   update(dt) {
     const e = this.engine;
+    this.voiceCooldown = Math.max(0, this.voiceCooldown - dt);
     // Street life continues through entrances and interiors; only combat stops.
     if (e.building.active) this.swing = null;
     this.spawnTimer -= dt;
@@ -92,6 +94,12 @@ globalThis.Pedestrians = class Pedestrians {
       person.phase += dt * (fleeing ? 10 : 6);
       person.x += person.facing * (fleeing ? 92 : 23) * dt;
       if (person.x < 35) { person.x = 35; person.facing = 1; }
+      if (!e.building.active && e.player.isGrounded && !fleeing && !person.hasSpoken &&
+          this.voiceCooldown === 0 && Math.abs(person.x - (e.player.x + e.character.width / 2)) <= 36 &&
+          e.audio?.playPasserby()) {
+        person.hasSpoken = true;
+        this.voiceCooldown = 6;
+      }
     }
   }
 
