@@ -15,7 +15,6 @@ BASE_H = 46
 scale = BASE_H / float(hh)
 
 # Upper body: Head, neck, torso, hoodie, jacket as ONE SOLID UNBROKEN PIECE
-# So head can NEVER be cut off, detached, or misaligned
 upper_body = hero.crop((0, 0, hw, 840))
 
 # Legs for natural knee articulation
@@ -30,7 +29,7 @@ ll_orig = Image.fromarray(l_arr)
 rl_orig = Image.fromarray(r_arr)
 
 knee_split = 260
-overlap = 40
+overlap = 50 # Duży 50px zapas materiału na kolanie zapobiegający jakiemukolwiek rozjeżdżaniu
 
 ll_thigh = ll_orig.crop((0, 0, hw, knee_split + overlap))
 ll_calf = ll_orig.crop((0, knee_split - overlap, hw, legs.height))
@@ -45,20 +44,27 @@ def build_leg(thigh, calf, hip_cx, thigh_rot=0, knee_bend=0):
     hip_px = top_x + hip_cx
     hip_py = top_y
 
+    # 1. Obrót uda wokół biodra (hip_px, hip_py)
     t_c = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
     t_c.paste(thigh, (top_x, top_y), thigh)
     t_rot = t_c.rotate(-thigh_rot, center=(hip_px, hip_py), resample=Image.Resampling.BICUBIC)
 
+    # 2. Dokładna, bezbłędna pozycja kolana po rotacji w przestrzeni PIL (kierunek Y w dół)
     rad = math.radians(-thigh_rot)
-    knee_px = hip_px - math.sin(rad) * knee_split
-    knee_py = hip_py + math.cos(rad) * knee_split
+    dx = 0
+    dy = knee_split
+    actual_knee_px = round(hip_px + dx * math.cos(rad) + dy * math.sin(rad))
+    actual_knee_py = round(hip_py - dx * math.sin(rad) + dy * math.cos(rad))
 
-    total_rot = -thigh_rot - knee_bend
+    # 3. Wklejenie łydki tak, by jej punkt obrotu kolana pokrył się co do piksela z actual_knee
     c_c = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
-    c_paste_x = int(knee_px - hip_cx)
-    c_paste_y = int(knee_py - overlap)
-    c_c.paste(calf, (c_paste_x, c_paste_y), calf)
-    c_rot = c_c.rotate(total_rot, center=(int(knee_px), int(knee_py)), resample=Image.Resampling.BICUBIC)
+    paste_x = actual_knee_px - hip_cx
+    paste_y = actual_knee_py - overlap
+    c_c.paste(calf, (paste_x, paste_y), calf)
+
+    # 4. Obrót łydki wokół DOKŁADNIE TEGO SAMEGO punktu kolana
+    total_rot = -thigh_rot - knee_bend
+    c_rot = c_c.rotate(total_rot, center=(actual_knee_px, actual_knee_py), resample=Image.Resampling.BICUBIC)
 
     return Image.alpha_composite(t_rot, c_rot), hip_px, hip_py
 
@@ -151,52 +157,52 @@ animations = {
     'special': []
 }
 
-# 1. IDLE (CAŁKOWICIE STABILNY POSTÓJ - zero skakania, zero ruchu, postać stoi w miejscu!)
+# 1. IDLE (Całkowicie stabilny postój, zero ruchu)
 f_idle = compose_frame()
 for _ in range(6):
     animations['idle'].append(f_idle.copy())
 
-# 2. WALK (Naturalny krok bez podskakiwania)
+# 2. WALK (Płynny krok z idealnie spójnymi, złączonymi w kolanach nogami)
 walk_params = [
-    {'l_thigh': 14, 'l_knee': 8, 'r_thigh': -14, 'r_knee': 16},
-    {'l_thigh': 7, 'l_knee': 4, 'r_thigh': -7, 'r_knee': 10},
-    {'l_thigh': -2, 'l_knee': 10, 'r_thigh': 8, 'r_knee': 14},
-    {'l_thigh': -14, 'l_knee': 16, 'r_thigh': 14, 'r_knee': 8},
-    {'l_thigh': -7, 'l_knee': 10, 'r_thigh': 7, 'r_knee': 4},
-    {'l_thigh': 8, 'l_knee': 14, 'r_thigh': -2, 'r_knee': 10},
+    {'l_thigh': 12, 'l_knee': 6, 'r_thigh': -12, 'r_knee': 8},
+    {'l_thigh': 6, 'l_knee': 3, 'r_thigh': -6, 'r_knee': 8},
+    {'l_thigh': 0, 'l_knee': 2, 'r_thigh': 6, 'r_knee': 10},
+    {'l_thigh': -12, 'l_knee': 8, 'r_thigh': 12, 'r_knee': 6},
+    {'l_thigh': -6, 'l_knee': 8, 'r_thigh': 6, 'r_knee': 3},
+    {'l_thigh': 6, 'l_knee': 10, 'r_thigh': 0, 'r_knee': 2},
 ]
 for p in walk_params:
     animations['walk'].append(compose_frame(**p))
 
-# 3. RUN (Pochylenie całej sylwetki o 7.5 stopnia, dynamiczne uginanie kolan)
+# 3. RUN (Pochylenie w sprincie z idealnie złączonymi w kolanach nogami)
 run_params = [
-    {'body_lean': 7.5, 'l_thigh': 28, 'l_knee': 36, 'r_thigh': -22, 'r_knee': 46},
-    {'body_lean': 7.5, 'l_thigh': 16, 'l_knee': 15, 'r_thigh': -10, 'r_knee': 30},
-    {'body_lean': 7.5, 'l_thigh': -4, 'l_knee': 10, 'r_thigh': 14, 'r_knee': 24},
-    {'body_lean': 7.5, 'l_thigh': -22, 'l_knee': 46, 'r_thigh': 28, 'r_knee': 36},
-    {'body_lean': 7.5, 'l_thigh': -10, 'l_knee': 30, 'r_thigh': 16, 'r_knee': 15},
-    {'body_lean': 7.5, 'l_thigh': 14, 'l_knee': 24, 'r_thigh': -4, 'r_knee': 10},
+    {'body_lean': 7.0, 'l_thigh': 24, 'l_knee': 20, 'r_thigh': -18, 'r_knee': 26},
+    {'body_lean': 7.0, 'l_thigh': 12, 'l_knee': 10, 'r_thigh': -8, 'r_knee': 18},
+    {'body_lean': 7.0, 'l_thigh': -4, 'l_knee': 6, 'r_thigh': 14, 'r_knee': 16},
+    {'body_lean': 7.0, 'l_thigh': -18, 'l_knee': 26, 'r_thigh': 24, 'r_knee': 20},
+    {'body_lean': 7.0, 'l_thigh': -8, 'l_knee': 18, 'r_thigh': 12, 'r_knee': 10},
+    {'body_lean': 7.0, 'l_thigh': 14, 'l_knee': 16, 'r_thigh': -4, 'r_knee': 6},
 ]
 for p in run_params:
     animations['run'].append(compose_frame(**p))
 
 # 4. JUMP (Naturalne ugięcie nóg: wybicie, szczyt z podkurczonymi nogami, opadanie, lądowanie)
 jump_params = [
-    {'body_lean': 3, 'l_thigh': 26, 'l_knee': 38, 'r_thigh': -12, 'r_knee': 24},
-    {'body_lean': 2, 'l_thigh': 32, 'l_knee': 58, 'r_thigh': 20, 'r_knee': 50},
-    {'body_lean': 0, 'l_thigh': -4, 'l_knee': 12, 'r_thigh': 6, 'r_knee': 16},
-    {'squash_y': 0.90, 'stretch_x': 1.05, 'l_thigh': 12, 'l_knee': 28, 'r_thigh': -12, 'r_knee': 28},
+    {'body_lean': 3, 'l_thigh': 24, 'l_knee': 28, 'r_thigh': -12, 'r_knee': 18},
+    {'body_lean': 2, 'l_thigh': 28, 'l_knee': 42, 'r_thigh': 18, 'r_knee': 36},
+    {'body_lean': 0, 'l_thigh': -4, 'l_knee': 8, 'r_thigh': 6, 'r_knee': 12},
+    {'squash_y': 0.90, 'stretch_x': 1.05, 'l_thigh': 10, 'l_knee': 20, 'r_thigh': -10, 'r_knee': 20},
 ]
 for p in jump_params:
     animations['jump'].append(compose_frame(**p))
 
 # 5. ATTACK (5 frames)
 attack_params = [
-    {'body_lean': 0, 'l_thigh': -6, 'l_knee': 12, 'r_thigh': 6, 'r_knee': 12},
-    {'body_lean': 6, 'l_thigh': 16, 'l_knee': 18, 'r_thigh': -12, 'r_knee': 20, 'fx_type': 'attack', 'fx_phase': 1},
-    {'body_lean': 8, 'l_thigh': 20, 'l_knee': 22, 'r_thigh': -16, 'r_knee': 24, 'fx_type': 'attack', 'fx_phase': 2},
-    {'body_lean': 5, 'l_thigh': 10, 'l_knee': 14, 'r_thigh': -8, 'r_knee': 14, 'fx_type': 'attack', 'fx_phase': 3},
-    {'body_lean': 0, 'l_thigh': 2, 'l_knee': 8, 'r_thigh': -2, 'r_knee': 8},
+    {'body_lean': 0, 'l_thigh': -6, 'l_knee': 8, 'r_thigh': 6, 'r_knee': 8},
+    {'body_lean': 6, 'l_thigh': 14, 'l_knee': 12, 'r_thigh': -10, 'r_knee': 14, 'fx_type': 'attack', 'fx_phase': 1},
+    {'body_lean': 8, 'l_thigh': 18, 'l_knee': 16, 'r_thigh': -14, 'r_knee': 18, 'fx_type': 'attack', 'fx_phase': 2},
+    {'body_lean': 5, 'l_thigh': 10, 'l_knee': 10, 'r_thigh': -8, 'r_knee': 10, 'fx_type': 'attack', 'fx_phase': 3},
+    {'body_lean': 0, 'l_thigh': 2, 'l_knee': 6, 'r_thigh': -2, 'r_knee': 6},
 ]
 for p in attack_params:
     animations['attack'].append(compose_frame(**p))
@@ -212,7 +218,7 @@ special_params = [
 for p in special_params:
     animations['special'].append(compose_frame(**p))
 
-print("All perfected animations generated!")
+print("All seamless perfected animations generated!")
 
 # Encode to Base64 JSON
 b64_animations = {}
@@ -239,4 +245,4 @@ html = re.sub(r'const HD_HERO_ANIMATIONS = \{[\s\S]*?\};', replacement, html, co
 with open(html_path, 'w', encoding='utf-8') as f:
     f.write(html)
 
-print("SUCCESS: index.html updated with perfected animations!")
+print("SUCCESS: index.html updated with seamless knee joints!")
