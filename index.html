@@ -1185,7 +1185,7 @@ class AnimationEngine {
             // Animacja jednorazowa zakończona (np. atak) -> powrót do idle lub walk
             if (this.player.isGrounded) {
               if (Math.abs(this.player.vx) > 0.1) {
-                this.setAnimation(this.keys['ShiftLeft'] ? 'run' : 'walk');
+                this.setAnimation((this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? 'run' : 'walk');
               } else {
                 this.setAnimation('idle');
               }
@@ -1202,8 +1202,8 @@ class AnimationEngine {
     // Płynne podążanie kamery za postacią (kamera NIGDY nie zjeżdża poniżej 0)
     this.audio.setWalking(
       this.player.isGrounded && this.player.isPlaying && this.player.x !== previousX &&
-      (this.player.currentAnim === 'walk' || this.player.currentAnim === 'run'),
-      this.player.currentAnim === 'run'
+      ['walk', 'run', 'attack'].includes(this.player.currentAnim),
+      Boolean(this.keys['ShiftLeft'] || this.keys['ShiftRight'])
     );
     const targetCamX = Math.max(0, this.player.x - 120);
     this.cameraX += (targetCamX - this.cameraX) * 0.08;
@@ -1211,8 +1211,8 @@ class AnimationEngine {
   }
 
   updatePlayerMovement(dt) {
-    // Blokada ruchu podczas ataku w miejscu (chyba że bieg)
-    const canMove = this.player.currentAnim !== 'attack' && this.player.currentAnim !== 'special';
+    const isAttacking = this.player.currentAnim === 'attack';
+    const canMove = this.player.currentAnim !== 'special';
 
     const isRunning = this.keys['ShiftLeft'] || this.keys['ShiftRight'];
     const speed = isRunning ? 2.4 : 1.2;
@@ -1221,11 +1221,11 @@ class AnimationEngine {
     if (canMove) {
       if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
         moveX -= 1;
-        this.player.facing = -1;
+        if (!isAttacking) this.player.facing = -1;
       }
       if (this.keys['KeyD'] || this.keys['ArrowRight']) {
         moveX += 1;
-        this.player.facing = 1;
+        if (!isAttacking) this.player.facing = 1;
       }
     }
 
@@ -1260,7 +1260,7 @@ class AnimationEngine {
         if (this.player.currentAnim === 'jump') {
           this.player.frameIndex = 3;
           setTimeout(() => {
-            if (this.player.isGrounded) {
+            if (this.player.isGrounded && !['attack', 'special'].includes(this.player.currentAnim)) {
               this.setAnimation(Math.abs(this.player.vx) > 0.1 ? (isRunning ? 'run' : 'walk') : 'idle');
             }
           }, 120);
@@ -1269,7 +1269,7 @@ class AnimationEngine {
     }
 
     // Automatyczny dobór animacji chodu/biegu/idle gdy jesteśmy na ziemi
-    if (this.player.isGrounded && canMove) {
+    if (this.player.isGrounded && canMove && !isAttacking) {
       if (Math.abs(this.player.vx) > 0.1) {
         const desiredAnim = isRunning ? 'run' : 'walk';
         if (this.player.currentAnim !== desiredAnim) {
