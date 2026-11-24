@@ -95,6 +95,74 @@ canvas, img {
 }
 .shop-help { display: block; margin-top: 10px; font-size: 16px; color: #b2bda6; }
 .in-building .touch-controls-layer, .in-building .floating-top-bar { visibility: hidden; }
+.game-tools {
+  position: fixed;
+  top: max(64px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 122;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+}
+.game-tools button, .journal-panel button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #bba77a;
+  background: #1a2725f5;
+  color: #f5e7c5;
+  font: 20px var(--font-retro);
+  cursor: pointer;
+  box-shadow: 2px 3px 0 #0008;
+}
+.game-tools button[aria-expanded="true"] { background: #655339; border-color: #ffe1a2; }
+.quest-notice { flex-basis: 100%; text-align: right; color: #f4d593; font-size: 17px; text-shadow: 1px 2px 2px #000; pointer-events: none; }
+.journal-panel {
+  position: fixed;
+  inset: 138px 16px 24px auto;
+  z-index: 121;
+  width: min(620px, calc(100vw - 32px));
+  overflow-y: auto;
+  padding: 22px;
+  background: #202923;
+  border: 2px solid #c6ad7c;
+  box-shadow: 0 0 0 100vmax #070e12b8, 5px 6px 0 #0008;
+  color: #f2e5c5;
+  font: 21px var(--font-retro);
+}
+.journal-panel[hidden] { display: none; }
+.journal-panel h2 { font-size: 28px; color: #edcf94; margin-bottom: 16px; }
+.journal-panel article { margin-bottom: 12px; padding: 12px; background: #ffffff08; border: 1px solid #7d846155; }
+.journal-panel h3 { font-size: 21px; font-weight: normal; color: #edcf94; margin-bottom: 6px; }
+.journal-panel p { white-space: pre-line; line-height: 1.5; }
+.journal-panel article.quest-current { border-left: 4px solid #e9bf70; background: #e9bf7010; }
+.journal-panel > button { width: 100%; }
+.journal-open .touch-controls-layer { visibility: hidden; }
+.shop-dialog { max-height: calc(100dvh - 150px); }
+.shop-message { line-height: 1.4; padding: 12px 14px; background: #101c18a0; border-left: 3px solid #c6ad7c; }
+.shop-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dialogue-mode .shop-choices { grid-template-columns: 1fr; }
+.shop-choices button { text-align: left; line-height: 1.2; }
+.shop-choices button.topic-read { color: #bfc6b1; background: #293a30; }
+.shop-choices button.navigation-back, .journal-panel button.navigation-back {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  background: #182522;
+  color: #bcd0cd;
+  border: 1px dashed #8da6a0;
+  box-shadow: none;
+  text-align: left;
+}
+.shop-choices button.navigation-exit { color: #f4d69e; border: 1px solid #c3a66b; background: #3b3325; }
+.game-tools button:focus-visible, .journal-panel button:focus-visible { outline: 2px solid #ffe1a2; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .game-tools { right: 8px; max-width: calc(100vw - 16px); gap: 4px; }
+  .game-tools button { padding: 6px 8px; font-size: 17px; }
+  .quest-notice { font-size: 15px; }
+  .journal-panel { top: 136px; bottom: 12px; padding: 14px; }
+  .shop-dialog .shop-choices { grid-template-columns: 1fr; }
+}
 @media (max-width: 600px) {
   .shop-dialog.tenement-mode { left: 50%; right: auto; transform: translateX(-50%); width: calc(100% - 32px); }
   .shop-dialog { padding: 10px 12px; font-size: 19px; bottom: 10px; }
@@ -764,6 +832,9 @@ input[type="range"] {
   color: var(--neon-cyan);
   margin-top: 2px;
 }
+
+.touch-btn[hidden], .tab-btn[hidden] { display: none; }
+.touch-btn-special:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 
 /* Responsywność ekranowa */
 @media (max-width: 600px) {

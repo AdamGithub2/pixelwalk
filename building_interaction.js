@@ -1,4 +1,8 @@
 /* Shared by the standalone file:// game and the ES module engine. */
+const BUILDING_ENTRY_TIMING = { turn: 0.16, walk: 0.4, fade: 0.14 };
+const GAME_SAVE_KEY = 'pixel-osiedle-save-v1';
+const GAME_ITEMS = ['bread', 'orangeade', 'newspaper', 'crossword', 'apples', 'ticket', 'originalTape', 'blankTape', 'copiedTape'];
+
 globalThis.BuildingInteraction = class BuildingInteraction {
   constructor(engine) {
     this.engine = engine;
@@ -22,12 +26,12 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       { id: 'spolem', x: 144, width: 19, title: 'SPOŁEM', subtitle: 'Sklep osiedlowy' },
       { id: 'block', type: 'block', x: 250, width: 25, title: 'BLOK NR 2', subtitle: 'Zielona klatka', asset: 'stairwell-02', description: 'Zapach wilgotnego lastryka. Zielona farba odpryskuje z poręczy, nad skrzynkami brzęczy świetlówka.' },
       { id: 'ruch', x: 367, width: 12, title: 'RUCH', subtitle: 'Prasa i drobiazgi', asset: 'ruch' },
-      { id: 'block-blue', type: 'block', x: 459, width: 22, title: 'BLOK NR 3', subtitle: 'Niebieska klatka', asset: 'stairwell-03', description: 'Niebieska lamperia pamięta lepsze czasy. Pod oknem stoi stary kaloryfer, na tablicy wiszą pożółkłe ogłoszenia.' },
+      { id: 'block-blue', type: 'block', x: 458, width: 23, title: 'BLOK NR 3', subtitle: 'Niebieska klatka', asset: 'stairwell-03', description: 'Niebieska lamperia pamięta lepsze czasy. Pod oknem stoi stary kaloryfer, na tablicy wiszą pożółkłe ogłoszenia.' },
       { id: 'cinema', x: 637, width: 80, title: 'KINO', subtitle: 'Kasa biletowa', asset: 'cinema' },
-      { id: 'market', x: 868, width: 17, title: 'TARG', subtitle: 'Warzywniak pod dachem', asset: 'market' },
-      { id: 'block-yellow', type: 'block', x: 1236, width: 23, title: 'BLOK NR 4', subtitle: 'Żółta klatka', asset: 'stairwell-04', description: 'Musztardowa farba, chłodne lastryko i ciężkie drzwi do piwnicy. W rogu widać ślady dawnego zacieku.' },
+      { id: 'market', x: 869, width: 19, title: 'TARG', subtitle: 'Warzywniak pod dachem', asset: 'market' },
+      { id: 'block-yellow', type: 'block', x: 1238, width: 28, title: 'BLOK NR 4', subtitle: 'Żółta klatka', asset: 'stairwell-04', description: 'Musztardowa farba, chłodne lastryko i ciężkie drzwi do piwnicy. W rogu widać ślady dawnego zacieku.' },
       { id: 'tower', type: 'block', x: 1420, width: 13, title: 'PUNKTOWIEC', subtitle: 'Klatka z windą', asset: 'stairwell-05', description: 'Za porysowanymi drzwiami buczy stara winda. Rdzawa lamperia i gołe przewody pod sufitem.' },
-      { id: 'block-turquoise', type: 'block', x: 1579, width: 13, title: 'BLOK NR 6', subtitle: 'Turkusowa klatka', asset: 'stairwell-06', description: 'Spod turkusowej farby wychodzi beż. Wgniecione skrzynki, zardzewiała rura i wydeptane stopnie.' }
+      { id: 'block-turquoise', type: 'block', x: 1576, width: 20, title: 'BLOK NR 6', subtitle: 'Turkusowa klatka', asset: 'stairwell-06', description: 'Spod turkusowej farby wychodzi beż. Wgniecione skrzynki, zardzewiała rura i wydeptane stopnie.' }
     ];
     this.images = new Map();
     for (const destination of this.destinations) {
@@ -42,6 +46,11 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.pendingCall = null;
     this.room = null;
     this.notes = new Map();
+    this.readTopics = new Set();
+    this.questFlags = new Set();
+    this.restoring = true;
+    this.saveElapsed = 0;
+    this.createJournal();
     const apartment = new Image();
     apartment.src = './assets/interiors/apartment-05.png';
     this.images.set('apartment-05', apartment);
@@ -59,9 +68,221 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.panel.setAttribute('aria-label', 'Sklep Społem');
     this.panel.innerHTML = '<div class="shop-heading"><span>SPOŁEM <small>Sklep osiedlowy</small></span><span class="shop-wallet"></span></div><p class="shop-message" role="status" aria-live="polite"></p><div class="shop-choices"></div><small class="shop-help">↑ ↓ wybór · Enter zatwierdź · Esc powrót / wyjście</small>';
     document.body.append(this.panel);
+    this.loadGame();
+    window.addEventListener('pagehide', () => this.saveGame());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.saveGame();
+    });
   }
 
-  get active() { return this.state !== 'street'; }
+  get active() { return this.state !== 'street' || Boolean(this.journalTab); }
+
+  saveGame() {
+    if (this.restoring || !this.engine.player) return false;
+    const e = this.engine;
+    const position = this.state !== 'street' && this.saved ? this.saved : e.player;
+    const data = {
+      version: 1, money: this.money, inventory: this.inventory,
+      readTopics: [...this.readTopics], questFlags: [...this.questFlags],
+      location: {
+        level: e.background.level, skin: e.character.currentSkin,
+        x: position.x, cameraX: this.saved?.cameraX ?? e.cameraX, facing: position.facing,
+        destination: this.state === 'inside' ? this.destination?.id : null,
+        room: this.state === 'inside' ? this.room : null
+      }
+    };
+    try {
+      globalThis.localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(data));
+      this.saveFailed = false;
+      return true;
+    } catch {
+      this.saveFailed = true;
+      if (this.questNotice) this.questNotice.textContent = 'Zapis niedostępny — przeglądarka blokuje pamięć gry.';
+      return false;
+    }
+  }
+
+  loadGame() {
+    try {
+      const data = JSON.parse(globalThis.localStorage.getItem(GAME_SAVE_KEY));
+      if (!data || data.version !== 1) return;
+      if (!Number.isSafeInteger(data.money) || data.money < 0 || data.money > 1000000) return;
+      if (!data.inventory || typeof data.inventory !== 'object') return;
+      const topics = new Set(Object.values(globalThis.LOCATION_DIALOGUES.homes).flat()
+        .concat(Object.values(globalThis.LOCATION_DIALOGUES.shops))
+        .flatMap(person => (person.topics ?? []).map((_, i) => `${person.name}:${i}`)));
+      this.money = data.money;
+      for (const item of GAME_ITEMS) {
+        const count = data.inventory[item];
+        this.inventory[item] = Number.isSafeInteger(count) && count >= 0 && count <= 9999 ? count : 0;
+      }
+      this.readTopics = new Set((Array.isArray(data.readTopics) ? data.readTopics : []).filter(key => topics.has(key)));
+      const flags = ['radio', 'original', 'blank', 'copied', 'listened', 'sold'];
+      this.questFlags = new Set((Array.isArray(data.questFlags) ? data.questFlags : []).filter(flag => flags.includes(flag)));
+      for (const people of [...Object.values(globalThis.LOCATION_DIALOGUES.homes), Object.values(globalThis.LOCATION_DIALOGUES.shops)]) {
+        for (const speaker of people) (speaker.topics ?? []).forEach((_, index) => {
+          if (this.readTopics.has(`${speaker.name}:${index}`)) this.recordTopic(speaker, index);
+        });
+      }
+      const location = data.location;
+      if (location && ['city', 'prl'].includes(location.level) && Number.isFinite(location.x) && location.x >= 0 && location.x <= 10000000 && Number.isFinite(location.cameraX) && location.cameraX >= 0 && location.cameraX <= 10000000) this.loadedLocation = location;
+      this.questNotice.textContent = '✓ Wczytano zapis gry';
+    } catch {
+      // A missing, corrupted or unavailable save must never prevent starting the game.
+    }
+  }
+
+  async restoreLocation() {
+    try {
+      const location = this.loadedLocation;
+      if (!location) return;
+      const e = this.engine;
+      if (location.level !== e.background.level) await e.setLevel(location.level);
+      if (['urban_hero', 'cyber_ronin'].includes(location.skin)) e.character.setSkin(location.skin);
+      e.cameraX = location.cameraX;
+      Object.assign(e.player, { x: location.x, y: e.getGroundLevel(), facing: location.facing === -1 ? -1 : 1, vx: 0, vy: 0, isGrounded: true });
+      e.setAnimation('idle');
+      const destination = location.level === 'prl' && this.destinations.find(place => place.id === location.destination);
+      if (destination) {
+        this.saved = { x: e.player.x, y: e.player.y, facing: e.player.facing, cameraX: e.cameraX };
+        this.destination = destination;
+        this.state = 'inside';
+        this.room = destination.id === 'tenement' && location.room === 'apartment' ? 'apartment' : null;
+        document.body.classList.add('in-building');
+        this.showMenu();
+      }
+    } finally {
+      this.restoring = false;
+    }
+  }
+
+  recordTopic(speaker, index) {
+    const key = `${speaker.name}:${index}`;
+    this.readTopics.add(key);
+    const answer = speaker.topics[index][1];
+    for (const contact of globalThis.LOCATION_DIALOGUES.contacts) {
+      if (contact.name === speaker.name || contact.match.test(answer)) this.notes.set(`contact:${contact.id}`, { title: contact.name, text: contact.text });
+    }
+    const tip = globalThis.LOCATION_DIALOGUES.tips[key];
+    if (tip) this.notes.set(`tip:${key}`, { title: tip[0], text: tip[1] });
+  }
+
+  createJournal() {
+    this.toolbar = document.createElement('nav');
+    this.toolbar.className = 'game-tools';
+    this.toolbar.setAttribute('aria-label', 'Ekwipunek i dzienniki');
+    for (const [tab, label, key] of [['inventory', '▣ Ekwipunek', 'I'], ['notes', '▤ Notatnik', 'N'], ['quests', '☑ Zadania', 'L']]) {
+      const button = document.createElement('button');
+      button.textContent = `${label} [${key}]`;
+      button.setAttribute('aria-expanded', 'false');
+      button.dataset.tab = tab;
+      button.addEventListener('click', () => this.openJournal(tab));
+      this.toolbar.append(button);
+    }
+    this.questNotice = document.createElement('span');
+    this.questNotice.className = 'quest-notice';
+    this.questNotice.setAttribute('role', 'status');
+    this.questNotice.textContent = 'Nowe zadanie: Pierwsza własna kopia';
+    this.toolbar.append(this.questNotice);
+    this.journal = document.createElement('section');
+    this.journal.className = 'journal-panel';
+    this.journal.hidden = true;
+    this.journal.setAttribute('role', 'dialog');
+    this.journal.setAttribute('aria-modal', 'true');
+    document.body.append(this.toolbar, this.journal);
+  }
+
+  markQuest(flag) {
+    this.questFlags ??= new Set();
+    if (this.questFlags.has(flag)) return;
+    this.questFlags.add(flag);
+    if (this.questNotice) this.questNotice.textContent = flag === 'sold' ? '✓ Zadanie ukończone: Pierwsza własna kopia' : '✓ Zaktualizowano dziennik zadań [L]';
+    this.saveGame();
+  }
+
+  questChapters() {
+    const has = flag => this.questFlags?.has(flag) ?? false;
+    return [
+      { title: '1. Poznaj swój sprzęt', steps: [
+        ['Obejrzyj swój magnetofon w mieszkaniu nr 5 w kamienicy.', has('radio')],
+        ['Zdobądź informacje o przegrywaniu kaset.', this.readTopics.has('Stefan Malec:0')],
+        ['Zdobądź informacje o ochronie oryginału nagrania.', this.readTopics.has('Zofia Wiśniewska:1')]
+      ] },
+      { title: '2. Zdobądź dwie kasety', steps: [
+        ['Zdobądź nagranie.', has('original')],
+        ['Zdobądź czystą kasetę.', has('blank')]
+      ] },
+      { title: '3. Pierwsza własna kopia', steps: [
+        ['Wykonaj kopię nagrania.', has('copied')],
+        ['Odsłuchaj kopię.', has('listened')],
+        ['Sprzedaj sprawdzoną kopię nagrania.', has('sold')]
+      ] }
+    ];
+  }
+
+  openJournal(tab) {
+    if (this.journalTab === tab) return this.closeJournal();
+    if (!this.journalTab) this.journalReturnFocus = document.activeElement;
+    this.journalTab = tab;
+    this.engine.keys = {};
+    this.engine.audio.setWalking(false);
+    this.panel.inert = true;
+    document.body.classList.add('journal-open');
+    this.prompt.hidden = true;
+    this.journal.hidden = false;
+    const titles = { inventory: 'Ekwipunek', notes: 'Notatnik', quests: 'Dziennik zadań' };
+    this.journal.setAttribute('aria-label', titles[tab]);
+    this.journal.replaceChildren();
+    const heading = document.createElement('h2');
+    heading.textContent = titles[tab];
+    this.journal.append(heading);
+    const addCard = (title, content) => {
+      const card = document.createElement('article');
+      const name = document.createElement('h3');
+      name.textContent = title;
+      const text = document.createElement('p');
+      text.textContent = content;
+      card.append(name, text);
+      this.journal.append(card);
+      return card;
+    };
+    if (tab === 'inventory') {
+      addCard('Portfel', `${this.money} zł`);
+      const names = { bread: 'Chleb', orangeade: 'Oranżada', newspaper: 'Gazeta', crossword: 'Krzyżówki', apples: 'Jabłka', ticket: 'Bilet do kina', originalTape: 'Pożyczona kaseta Zofii · oryginał', blankTape: 'Czysta kaseta C60', copiedTape: 'Własna kopia nagrania' };
+      const items = Object.entries(this.inventory).filter(([, count]) => count > 0);
+      items.forEach(([item, count]) => addCard(names[item] ?? item, `Ilość: ${count}`));
+      if (!items.length) addCard('Plecak jest pusty', 'Przedmioty z zakupów i zadań pojawią się tutaj.');
+    } else if (tab === 'notes') {
+      if (!this.notes.size) addCard('Jeszcze brak notatek', 'Rozmawiaj z mieszkańcami. Przydatne adresy i wskazówki zapisują się tutaj.');
+      this.notes.forEach(note => addCard(note.title, note.text));
+    } else {
+      const chapters = this.questChapters();
+      const current = chapters.findIndex(chapter => chapter.steps.some(([, done]) => !done));
+      addCard('Pierwsza własna kopia', current < 0 ? 'Ukończone! Kopia została nagrana, odsłuchana i sprzedana. Zarobek: 12 zł.' : 'Poznaj obsługę magnetofonu, zdobądź kasety i przygotuj własną kopię na sprzedaż.');
+      chapters.forEach((chapter, index) => {
+        const done = chapter.steps.filter(([, complete]) => complete).length;
+        const card = addCard(`${done === chapter.steps.length ? '✓' : index === current ? '→' : '○'} ${chapter.title} · ${done}/${chapter.steps.length}`, chapter.steps.map(([label, complete]) => `${complete ? '✓' : '□'} ${label}`).join('\n'));
+        card.classList.toggle('quest-current', index === current);
+      });
+    }
+    const close = document.createElement('button');
+    close.className = 'navigation-back';
+    close.textContent = '↩ Powrót do gry · Esc';
+    close.addEventListener('click', () => this.closeJournal());
+    this.journal.append(close);
+    this.toolbar.querySelectorAll('button').forEach(button => button.setAttribute('aria-expanded', String(button.dataset.tab === tab)));
+    close.focus({ preventScroll: true });
+  }
+
+  closeJournal() {
+    this.journalTab = null;
+    this.journal.hidden = true;
+    this.panel.inert = false;
+    this.engine.keys = {};
+    document.body.classList.remove('journal-open');
+    this.toolbar.querySelectorAll('button').forEach(button => button.setAttribute('aria-expanded', 'false'));
+    this.journalReturnFocus?.focus({ preventScroll: true });
+  }
 
   get residents() { return globalThis.LOCATION_DIALOGUES.homes[this.destination?.id] ?? []; }
 
@@ -82,6 +303,30 @@ globalThis.BuildingInteraction = class BuildingInteraction {
 
   handleKey(event) {
     if (event.target.closest?.('input, select, textarea') || document.querySelector('.side-drawer.open')) return false;
+    const tab = { KeyI: 'inventory', KeyN: 'notes', KeyL: 'quests' }[event.code];
+    if (tab) {
+      event.preventDefault();
+      if (!event.repeat) this.openJournal(tab);
+      return true;
+    }
+    if (this.journalTab) {
+      if (event.code === 'Escape') { event.preventDefault(); this.closeJournal(); }
+      else if (event.code === 'Tab') {
+        const buttons = [...this.toolbar.querySelectorAll('button'), ...this.journal.querySelectorAll('button')];
+        const index = buttons.indexOf(document.activeElement);
+        event.preventDefault();
+        buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+      } else if (!['Enter', 'Space'].includes(event.code)) event.preventDefault();
+      return true;
+    }
+    if (event.target.closest?.('.game-tools') && ['Enter', 'Space'].includes(event.code)) return true;
+    if (this.active && event.code === 'Tab') {
+      const buttons = [...this.toolbar.querySelectorAll('button'), ...this.panel.querySelectorAll('button')];
+      const index = buttons.indexOf(document.activeElement);
+      event.preventDefault();
+      buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+      return true;
+    }
     if (!this.active) {
       if (['ArrowUp', 'KeyW'].includes(event.code) && this.nearbyDoor()) {
         if (!event.repeat) this.enter();
@@ -93,7 +338,8 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     event.preventDefault();
     if (event.repeat || this.state !== 'inside') return true;
     if (event.code === 'Escape') {
-      if (this.menu === 'main' && this.room === 'apartment') this.leaveApartment();
+      if (this.backAction) this.backAction();
+      else if (this.menu === 'main' && this.room === 'apartment') this.leaveApartment();
       else if (this.menu === 'main') this.exit();
       else this.showMenu();
     } else if (['ArrowUp', 'ArrowDown'].includes(event.code)) {
@@ -157,9 +403,16 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     e.audio.setWalking(false);
     document.body.classList.remove('in-building');
     this.previousFocus?.focus({ preventScroll: true });
+    this.saveGame();
   }
 
   update(dt) {
+    this.saveElapsed = (this.saveElapsed ?? 0) + dt;
+    if (this.saveElapsed >= 2) {
+      this.saveElapsed = 0;
+      this.saveGame();
+    }
+    if (this.journalTab) return true;
     if (!this.active) {
       const door = this.nearbyDoor();
       this.prompt.hidden = !door;
@@ -168,9 +421,10 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     }
     this.elapsed += dt;
     if (this.state === 'inside' && this.destination?.id === 'tenement') this.interiorHero.update(dt);
-    const walking = this.state === 'entering' && this.elapsed >= 0.35 && this.elapsed < 1.85;
+    const arrival = BUILDING_ENTRY_TIMING.turn + BUILDING_ENTRY_TIMING.walk;
+    const walking = this.state === 'entering' && this.elapsed >= BUILDING_ENTRY_TIMING.turn && this.elapsed < arrival;
     this.engine.audio.setWalking(walking);
-    if (this.state === 'entering' && this.elapsed >= 2.25) {
+    if (this.state === 'entering' && this.elapsed >= arrival + BUILDING_ENTRY_TIMING.fade) {
       this.state = 'inside';
       this.elapsed = 0;
       this.engine.audio.setWalking(false);
@@ -260,14 +514,27 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     this.speaker = speaker;
     this.setChoices(message, [
       ...speaker.topics.map(([question, answer], index) => [question, () => {
-        this.notes.set(`${speaker.name}:${index}`, { title: `${speaker.name} · ${question}`, text: answer });
-        this.showConversation(speaker, back, answer);
+        this.recordTopic(speaker, index);
+        if ((speaker.name === 'Stefan Malec' && index === 0) || (speaker.name === 'Zofia Wiśniewska' && index === 1)) this.markQuest(`talk:${speaker.name}:${index}`);
+        else if (this.questNotice) this.questNotice.textContent = '✓ Rozmowa zapamiętana · wskazówki w notatniku [N]';
+        if (speaker.name === 'Zofia Wiśniewska' && index === 3 && !this.questFlags.has('original')) {
+          this.inventory.originalTape = 1;
+          this.markQuest('original');
+        }
+        if (speaker.name === 'Marek Wójcik' && index === 3 && !this.questFlags.has('blank')) {
+          this.inventory.blankTape = 1;
+          this.markQuest('blank');
+        }
+        const reply = speaker.name === 'Piotr Zieliński' && index === 3 ? this.sellTape() : answer;
+        this.saveGame();
+        this.showConversation(speaker, back, reply);
       }]),
       ['Zakończ rozmowę', back]
     ]);
   }
 
   showNotebook(page = 0) {
+    if (this.journal) return this.openJournal('notes');
     this.pendingCall = null;
     this.speaker = null;
     this.menu = 'notebook';
@@ -301,15 +568,20 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   }
 
   inspectHome(object) {
+    if (object === 'cassette') this.markQuest('radio');
     this.interiorHero.walkTo(object === 'computer' ? 0.19 : 0.23);
     this.menu = 'home-detail';
     const details = {
       computer: 'Stary komputer, osobna obudowa, klawiatura i głęboki monitor CRT. Na zielonym ekranie miga kursor. Obok leżą zapisane kartki i pudełka po kasetach.',
-      cassette: 'Jeden radiomagnetofon, dwie kieszenie: A do odtwarzania oryginału, B do nagrania kopii. Są przyciski PLAY, RECORD i przełącznik kopiowania. Tu będzie można przygotować własne nagranie.'
+      cassette: 'Jeden radiomagnetofon, dwie kieszenie: A do odtwarzania oryginału, B do nagrania kopii. Włóż pożyczone nagranie do A, a czystą kasetę do B. Po kopiowaniu odsłuchaj rezultat.'
     };
     this.setChoices(details[object], [
+      ...(object === 'cassette' ? [
+        ['Nagraj kopię kasety', () => this.copyTape()],
+        ['Odsłuchaj własną kopię', () => this.listenTape()]
+      ] : []),
       ...(object === 'cassette' ? [['Jak przygotować kasety?', () => {
-        this.setChoices('Oryginał i kaseta docelowa muszą być osobno. Sprawdź ich opis i długość. Stefan z zielonego bloku zna ten sprzęt, a Zofia z niebieskiego wie, jak zabezpieczyć oryginały.', [['Wróć do radiomagnetofonu', () => this.inspectHome('cassette')]]);
+        this.setChoices('Oryginał i kaseta docelowa muszą być osobno. Sprawdź ich opis i długość. Porozmawiaj z mieszkańcami o obsłudze magnetofonu i zabezpieczeniu oryginalnego nagrania.', [['Wróć do radiomagnetofonu', () => this.inspectHome('cassette')]]);
       }]] : []),
       ['Wróć do pokoju', () => this.showApartment()]
     ]);
@@ -318,6 +590,38 @@ globalThis.BuildingInteraction = class BuildingInteraction {
   leaveApartment() {
     this.room = null;
     this.showMenu();
+  }
+
+  copyTape() {
+    const prepared = this.questChapters()[0].steps.every(([, done]) => done);
+    let message;
+    if (this.questFlags?.has('copied')) message = 'Kopia jest już gotowa. Teraz odsłuchaj ją od początku do końca.';
+    else if (!prepared) message = 'Najpierw poznaj obsługę sprzętu i zabezpieczenie oryginału. Dziennik zadań [L] wskaże brakujące kroki.';
+    else if (!this.inventory.originalTape || !this.inventory.blankTape) message = 'Potrzebujesz oryginału nagrania i osobnej czystej taśmy. Poszukaj wskazówek w rozmowach i notatniku [N].';
+    else {
+      this.inventory.blankTape--;
+      this.inventory.copiedTape = 1;
+      this.markQuest('copied');
+      message = 'Kopiowanie zakończone. Oryginał pozostał bez zmian, a własna kopia trafia do plecaka. Odsłuchaj ją, żeby sprawdzić nagranie.';
+    }
+    this.menu = 'home-detail';
+    this.setChoices(message, [['Wróć do radiomagnetofonu', () => this.inspectHome('cassette')]]);
+  }
+
+  listenTape() {
+    if (this.inventory.copiedTape) this.markQuest('listened');
+    this.menu = 'home-detail';
+    this.setChoices(this.inventory.copiedTape ? 'Sprawdzasz początek i koniec obu stron: muzyka jest kompletna, kopia brzmi poprawnie. Możesz ją sprzedać. Poszukaj kogoś, kto zbiera nagrania.' : 'Nie masz jeszcze własnej kopii. Najpierw przygotuj kasety i nagraj materiał.', [['Wróć do radiomagnetofonu', () => this.inspectHome('cassette')]]);
+  }
+
+  sellTape() {
+    if (this.questFlags.has('sold')) return 'Tę kopię już od ciebie kupiłem. Dziękuję za nagranie!';
+    if (!this.inventory.copiedTape) return 'Chętnie kupię kopię za 12 zł. Najpierw musisz ją nagrać na osobnej kasecie.';
+    if (!this.questFlags.has('listened')) return 'Najpierw odsłuchaj kopię u siebie. Chcę mieć pewność, że całe nagranie jest na taśmie.';
+    this.inventory.copiedTape--;
+    this.money += 12;
+    this.markQuest('sold');
+    return 'Biorę ją! Dostajesz 12 zł, a kopia trafia do kolekcji Piotra. Zadanie „Pierwsza własna kopia” ukończone.';
   }
 
   showGoods(message, preserveSelection = false) {
@@ -350,10 +654,12 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     if (this.money < price) return this.showGoods('Brakuje pieniędzy. Może następnym razem?', true);
     this.money -= price;
     this.inventory[item]++;
+    this.saveGame();
     this.showGoods(message, true);
   }
 
   setChoices(message, choices, preserveSelection = false) {
+    this.backAction = choices.find(([label]) => /^(Wróć|Wyjdź|Zakończ rozmowę)/.test(label))?.[1] ?? null;
     this.panel.hidden = false;
     const intercom = this.menu === 'intercom' || this.menu === 'intercom-call';
     const atHome = this.room === 'apartment';
@@ -368,9 +674,7 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       ? 'DOMOFON <small>Spis mieszkańców</small>' : talking ? `${this.speaker.name} <small>Rozmowa</small>` : `${title} <small>${atHome ? 'Kamienica · mieszkanie 5' : this.destination.subtitle}</small>`;
     const wallet = this.panel.querySelector('.shop-wallet');
     wallet.hidden = residential;
-    const labels = { bread: 'chleb', orangeade: 'oranżada', newspaper: 'gazeta', crossword: 'krzyżówki', apples: 'jabłka', ticket: 'bilet' };
-    const contents = Object.entries(this.inventory).filter(([, count]) => count).map(([item, count]) => `${count} × ${labels[item]}`);
-    wallet.textContent = `${this.money} zł · Plecak: ${contents.join(', ') || 'pusty'}`;
+    wallet.textContent = `${this.money} zł`;
     this.panel.querySelector('.shop-help').textContent = intercom
       ? '1–5 mieszkanie · ↑ ↓ wybór · Enter zatwierdź · Esc powrót / wyjście'
       : '↑ ↓ wybór · Enter zatwierdź · Esc powrót / wyjście';
@@ -379,20 +683,26 @@ globalThis.BuildingInteraction = class BuildingInteraction {
     const selected = preserveSelection ? [...container.children].indexOf(document.activeElement) : 0;
     container.replaceChildren(...choices.map(([label, action], i) => {
       const button = document.createElement('button');
-      button.textContent = `${i + 1}. ${label}`;
+      const navigation = /^(Wróć|Wyjdź|Zakończ rozmowę)/.test(label);
+      button.classList.toggle('navigation-back', navigation);
+      button.classList.toggle('navigation-exit', /^(Wyjdź|Wróć na ulicę)/.test(label));
+      const read = talking && this.readTopics.has(`${this.speaker.name}:${i}`);
+      button.classList.toggle('topic-read', Boolean(read));
+      button.textContent = navigation ? `↩ ${label}` : `${i + 1}. ${read ? '✓ ' : ''}${label}`;
       button.addEventListener('click', action);
       return button;
     }));
     container.children[Math.max(0, selected)]?.focus({ preventScroll: true });
+    this.saveGame();
   }
 
   backFrame() {
     if (this.engine.character.currentSkin === 'cyber_ronin') return this.legacyBackFrame();
     if (!this.entryAtlas) return this.engine.character.animations.idle[0];
     const asset = globalThis.ENTRY_HERO_ASSETS;
-    const turning = this.elapsed < 0.35;
-    const index = turning ? Math.min(3, Math.floor(this.elapsed / 0.0875))
-      : Math.floor((this.elapsed - 0.35) * 9) % asset.frames;
+    const turning = this.elapsed < BUILDING_ENTRY_TIMING.turn;
+    const index = turning ? Math.min(3, Math.floor(this.elapsed / (BUILDING_ENTRY_TIMING.turn / 4)))
+      : Math.floor((this.elapsed - BUILDING_ENTRY_TIMING.turn) * 12) % asset.frames;
     const mirrored = turning && this.saved.facing === -1;
     const key = `entry:${turning ? 0 : 1}:${index}:${mirrored}`;
     if (this.frames.has(key)) return this.frames.get(key);
@@ -450,13 +760,12 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       return;
     }
     if (this.state === 'entering') {
-      const t = Math.max(0, Math.min(1, (this.elapsed - 0.35) / 1.5));
-      const ease = t * t * (3 - 2 * t);
-      const scale = 1 - ease * 0.58;
+      const progress = Math.max(0, Math.min(1, (this.elapsed - BUILDING_ENTRY_TIMING.turn) / BUILDING_ENTRY_TIMING.walk));
+      const scale = 1 - progress * 0.58;
       const feet = this.saved.y + (e.character.footOffsetY ?? e.character.height - 2);
       const startX = this.saved.x - this.saved.cameraX + e.character.width / 2;
-      const x = startX + (this.door.x - startX) * ease;
-      const y = feet + (this.door.y - feet) * ease;
+      const x = startX + (this.door.x - startX) * progress;
+      const y = feet + (this.door.y - feet) * progress;
       const frame = this.backFrame();
       const sourceFoot = frame.width === 32 ? 45 : 51;
       const factor = (e.character.footOffsetY ?? e.character.height - 2) / sourceFoot * scale;
@@ -465,8 +774,14 @@ globalThis.BuildingInteraction = class BuildingInteraction {
       ctx.fillStyle = 'rgba(15,20,25,0.35)';
       ctx.fillRect(Math.round(x - width / 3), Math.round(y), Math.round(width * 2 / 3), 1);
       ctx.drawImage(frame, Math.round(x - width / 2), Math.round(y - sourceFoot * factor), width, height);
-      if (this.elapsed > 1.8) {
-        ctx.fillStyle = `rgba(12,17,20,${Math.min(1, (this.elapsed - 1.8) / 0.35)})`;
+    }
+  }
+
+  renderTransition(ctx) {
+    if (this.state === 'entering') {
+      const arrival = BUILDING_ENTRY_TIMING.turn + BUILDING_ENTRY_TIMING.walk;
+      if (this.elapsed > arrival) {
+        ctx.fillStyle = `rgba(12,17,20,${Math.min(1, (this.elapsed - arrival) / BUILDING_ENTRY_TIMING.fade)})`;
         ctx.fillRect(0, 0, 320, 180);
       }
     } else if (this.state === 'leaving') {

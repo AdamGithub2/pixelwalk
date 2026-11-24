@@ -1,4 +1,5 @@
 import './pedestrian_assets.js';
+import './prl_pedestrian_assets.js';
 import './pedestrians.js';
 import './entry_assets.js';
 import './location_dialogues.js';
@@ -86,7 +87,7 @@ export class AnimationEngine {
 
     // Uruchomienie pętli
     this.loop = this.loop.bind(this);
-    this.ready = this.setLevel('prl');
+    this.ready = this.setLevel('prl').then(() => this.building.restoreLocation());
     const start = () => {
       this.lastTime = performance.now();
       requestAnimationFrame(this.loop);
@@ -97,28 +98,18 @@ export class AnimationEngine {
   initInput() {
     window.addEventListener('keydown', (e) => {
       if (this.building.handleKey(e)) return;
+      // Adventure controls: combat and jumping are hidden; SP is reserved.
+      if (['Space', 'KeyF', 'KeyJ', 'KeyE', 'KeyK', 'Digit4', 'Digit5', 'Digit6'].includes(e.code)) {
+        if (!e.target.closest?.('button, input, select, textarea')) e.preventDefault();
+        return;
+      }
       this.keys[e.code] = true;
 
       // Klawisze bezpośredniego przełączania animacji (dla szybkiego testu)
       if (e.code === 'Digit1') this.setAnimation('idle');
       if (e.code === 'Digit2') this.setAnimation('walk');
       if (e.code === 'Digit3') this.setAnimation('run');
-      if (e.code === 'Digit4') this.setAnimation('attack', false);
-      if (e.code === 'Digit5') this.setAnimation('jump');
-      if (e.code === 'Digit6') this.setAnimation('special', false);
 
-      // Spacja = skok
-      if (e.code === 'Space' && this.player.isGrounded) {
-        this.jump();
-      }
-      // F lub J = atak kataną
-      if ((e.code === 'KeyF' || e.code === 'KeyJ') && this.player.currentAnim !== 'attack') {
-        this.triggerAttack();
-      }
-      // E lub K = specjalny impuls
-      if ((e.code === 'KeyE' || e.code === 'KeyK') && this.player.currentAnim !== 'special') {
-        this.triggerSpecial();
-      }
     });
 
     window.addEventListener('blur', () => { this.keys = {}; });
@@ -357,9 +348,7 @@ export class AnimationEngine {
 
   updateDemo(dt) {
     this.demoTimer += dt;
-    // Pętla demo: postać idzie w prawo, biegnie, tnie kataną, skacze, idzie w lewo
-    const phase = Math.floor(this.demoTimer % 14);
-
+    const phase = Math.floor(this.demoTimer % 12);
     if (phase < 3) {
       this.player.facing = 1;
       this.player.x += 1.2;
@@ -368,18 +357,12 @@ export class AnimationEngine {
       this.player.facing = 1;
       this.player.x += 2.2;
       if (this.player.currentAnim !== 'run') this.setAnimation('run');
-    } else if (phase < 8) {
-      if (this.player.currentAnim !== 'attack') this.triggerAttack();
     } else if (phase < 10) {
-      if (this.player.isGrounded && this.player.currentAnim !== 'jump') {
-        this.jump();
-      }
-    } else if (phase < 12) {
       this.player.facing = -1;
       this.player.x = Math.max(30, this.player.x - 1.8);
       if (this.player.currentAnim !== 'walk') this.setAnimation('walk');
     } else {
-      if (this.player.currentAnim !== 'special') this.triggerSpecial();
+      if (this.player.currentAnim !== 'idle') this.setAnimation('idle');
     }
   }
 
@@ -398,7 +381,6 @@ export class AnimationEngine {
     // 2. Renderowanie wielowarstwowego tła
     this.background.render(bctx, this.cameraX, this.timeCounter);
     this.building.renderBehindPlayer(bctx);
-    this.pedestrians.render(bctx);
 
     // 3. Pozycja postaci na ekranie (ZAWSZE zaokrąglona do liczby całkowitej!)
     const screenX = Math.round(this.player.x - this.cameraX);
@@ -422,6 +404,8 @@ export class AnimationEngine {
 
     // 6. Przeskalowanie bufora 320x180 na główny Canvas użytkownika z zachowaniem crisp-edges
     this.building.render(bctx);
+    this.pedestrians.render(bctx);
+    this.building.renderTransition(bctx);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(
       this.buffer,

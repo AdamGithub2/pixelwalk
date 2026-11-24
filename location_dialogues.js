@@ -115,7 +115,40 @@
       ])
     ]
   };
-  for (const entries of Object.values(homes)) entries.forEach((person, i) => { person.flat = i + 1; });
+  const neighborhoodTopics = {
+    tenement: [
+      ['Gdzie mogę zapytać o magnetofon?', 'Stefan Malec mieszka pod jedynką w zielonym bloku. W kamienicy możesz też zapytać Helenę spod jedynki o pozostałych sąsiadów.'],
+      ['Jak znaleźć moje mieszkanie?', 'Twoje mieszkanie ma numer 5. Wejdź na klatkę i wybierz swoje mieszkanie. Komputer i radiomagnetofon są w pokoju.']
+    ],
+    block: [
+      ['Kto w tym bloku naprawia sprzęt?', 'Stefan Malec spod jedynki. Zna radia i magnetofony. Zapytaj go o kieszenie A i B, zanim zaczniesz nagrywać.'],
+      ['Gdzie szukać nagrań do przegrania?', 'W niebieskim bloku pod jedynką mieszka Zofia Wiśniewska. Ma nagrania radiowe i wie, jak chronić oryginały.']
+    ],
+    'block-blue': [
+      ['U kogo znajdę kasety z muzyką?', 'U Zofii Wiśniewskiej, mieszkanie 1 w naszym bloku. Zapytaj ją o kolekcję i o możliwość pożyczenia nagrania.'],
+      ['Gdzie szukać czystej taśmy?', 'Marek Wójcik z turkusowego bloku, mieszkanie 1, zbiera kasety i pudełka. Może ma jakąś wolną taśmę.']
+    ],
+    'block-yellow': [
+      ['Kto zbiera nagrania koncertów?', 'Piotr Zieliński spod jedynki. Porozmawiaj z nim o koncertach i opisywaniu kaset.'],
+      ['Kto zna się na jakości nagrania?', 'Zygmunt Kurek z punktowca, mieszkanie 2. Pracował jako kinooperator i zawsze sprawdza cały materiał.']
+    ],
+    tower: [
+      ['Gdzie mieszka dawny kinooperator?', 'Zygmunt Kurek jest tutaj pod dwójką. Zapytaj go, jak sprawdzić gotową kopię.'],
+      ['Co zrobić, kiedy magnetofon szumi?', 'Sprawdź go w mieszkaniu z dala od windy i świetlówek. Jeśli nadal szumi, zapytaj Stefana z zielonego bloku, mieszkanie 1.']
+    ],
+    'block-turquoise': [
+      ['Kto ma zapas kaset?', 'Marek Wójcik spod jedynki w naszym bloku. Zapytaj go o czystą kasetę i o przygotowanie taśm do kopiowania.'],
+      ['Gdzie mogę zrobić własne nagranie?', 'Masz dwukasetowy radiomagnetofon w mieszkaniu 5 w starej kamienicy. Najpierw zbierz oryginał i osobną czystą taśmę.']
+    ]
+  };
+  for (const [id, entries] of Object.entries(homes)) entries.forEach((person, i) => {
+    person.flat = i + 1;
+    if (!person.own && person.topics.length === 1) person.topics.push(...neighborhoodTopics[id]);
+  });
+  homes['block-blue'][0].topics.push(['Czy pożyczysz mi nagranie do skopiowania?', 'Pożyczę ci opisaną kasetę z audycją muzyczną. Trafia do twojego plecaka. Zabezpieczyłam oryginał przed nagraniem — zrób kopię na osobnej taśmie.']);
+  homes['block-turquoise'][0].topics.push(['Czy masz dla mnie czystą kasetę?', 'Mam jedną wolną C60, możesz ją wziąć. Wkładam ją do twojego plecaka. Przeznacz ją na kopię, a nagranie Zofii zostaw w spokoju.']);
+  homes['block-yellow'][0].topics.push(['Czy kupisz ode mnie kopię nagrania?', 'Za kompletną, sprawdzoną kopię dam 12 zł. Najpierw ją nagraj i odsłuchaj u siebie.']);
+  homes['block-yellow'][0].topics[0][1] += ' Kupuję też sprawdzone kopie nagrań — płacę 12 zł za kasetę.';
   const shops = {
     spolem: resident('Irena ze Społem', 'Dzień dobry! Towar już rozłożony. Czego chcesz się dowiedzieć?', [
       ['Kto zna wszystkich na osiedlu?', 'Roman w kiosku ma prasę i ogłoszenia. Helena z kamienicy, spod jedynki, pamięta z kolei, kto gdzie mieszka. Dwie dobre osoby, jeśli kogoś szukasz.'],
@@ -138,5 +171,29 @@
       ['Jak trafić do starej kamienicy?', 'Po drugiej stronie kina miniesz Ruch i Społem. Kamienica jest jeszcze dalej w lewo. Helena spod jedynki na pewno odbierze.']
     ])
   };
-  globalThis.LOCATION_DIALOGUES = { homes, shops };
+  const contacts = [
+    { id: 'stefan', name: 'Stefan Malec', match: /Stefan|Malec|Malca/iu, text: 'Zielony blok, m. 1 · zna się na magnetofonach i przegrywaniu kaset.' },
+    { id: 'zofia', name: 'Zofia Wiśniewska', match: /Zofi/iu, text: 'Niebieski blok, m. 1 · kolekcjonuje nagrania; wie, jak zabezpieczyć oryginał.' },
+    { id: 'marek', name: 'Marek Wójcik', match: /Marek|Marka/iu, text: 'Turkusowy blok, m. 1 · kasety i pudełka; warto zapytać o czystą taśmę.' },
+    { id: 'piotr', name: 'Piotr Zieliński', match: /Piotr/iu, text: 'Żółty blok, m. 1 · zbiera koncerty; kupuje sprawdzone kopie nagrań za 12 zł.' },
+    { id: 'zygmunt', name: 'Zygmunt Kurek', match: /Zygmunt/iu, text: 'Punktowiec, m. 2 · dawny kinooperator; zna się na jakości nagrań.' },
+    { id: 'helena', name: 'Helena Wolska', match: /Helen/iu, text: 'Kamienica, m. 1 · zna mieszkańców i ich adresy.' },
+    { id: 'roman', name: 'Roman z Ruchu', match: /Roman(?:a)? (?:w|z)|Roman z Ruchu/iu, text: 'Kiosk Ruch · ogłoszenia o naprawach, wymianie i używanym sprzęcie.' },
+    { id: 'halina', name: 'Halina z kasy kina', match: /Halin(?:a|y|ę) (?:w|z)|[Kk]asjerka/iu, text: 'Kasa kina · zna dawne seanse, koncerty i kinooperatorów.' },
+    { id: 'basia', name: 'Basia ze straganu', match: /Basi/iu, text: 'Targ za kinem · zna sprzedawców używanego sprzętu.' }
+  ];
+  const tips = {
+    'Stefan Malec:0': ['Przegrywanie kaset', 'Kieszeń A: oryginał. Kieszeń B: osobna kaseta na kopię.'],
+    'Stefan Malec:1': ['Jakość dźwięku', 'Brudna głowica i zużyta taśma pogarszają dźwięk. Szybkie kopiowanie też może obniżyć jakość.'],
+    'Zofia Wiśniewska:0': ['Opis nagrania', 'Na kasecie zapisz datę, wykonawcę oraz stronę A/B.'],
+    'Zofia Wiśniewska:1': ['Ochrona oryginału', 'Wyłamane języczki chronią kasetę przed nadpisaniem. Kopię nagrywaj na osobnej taśmie.'],
+    'Zofia Wiśniewska:2': ['Kaseta C60', '60 minut łącznie · około 30 minut na każdej stronie.'],
+    'Piotr Zieliński:1': ['Etykieta kopii', 'Zapisz wykonawcę, tytuł, źródło i stronę nagrania.'],
+    'Zygmunt Kurek:0': ['Sprawdzenie kopii', 'Odsłuchaj początek i koniec obu stron. Sprawdź, czy zamiast muzyki nie nagrała się cisza.'],
+    'Marek Wójcik:0': ['Przechowywanie kaset', 'Trzymaj kasety w pudełkach; oddziel oryginały od kopii.'],
+    'Marek Wójcik:2': ['Przed nagrywaniem', 'Oddziel oryginał od czystej kasety. Sprawdź długość i opisz obie taśmy.'],
+    'Basia ze straganu:1': ['Kupowanie starych kaset', 'Sprawdź pęknięcia obudowy, wilgoć i stan nagrania.'],
+    'Wanda Górska:1': ['Zakłócenia radia', 'Silnik windy i świetlówki mogą zakłócać odbiór. Sprawdź radio w mieszkaniu przy oknie.']
+  };
+  globalThis.LOCATION_DIALOGUES = { homes, shops, contacts, tips };
 })();

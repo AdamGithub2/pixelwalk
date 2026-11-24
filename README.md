@@ -1,10 +1,61 @@
 # PIXEL ART ANIMATION ENGINE // FRAME BLITTER
 
+### Ekwipunek, notatnik i zadania
+
+Stały pasek na ekranie otwiera **Ekwipunek [I]**, **Notatnik [N]** i
+**Dziennik zadań [L]** na ulicy oraz we wszystkich wnętrzach. Ekwipunek pokazuje
+portfel i posiadane przedmioty, a notatnik gromadzi krótkie adresy i wskazówki
+poznane w rozmowach, bez przepisywania całych odpowiedzi.
+**Esc** zamyka panel i wraca do przerwanej rozmowy lub eksploracji.
+Rozmówcy mają co najmniej trzy pytania; przeczytane tematy oznaczono ✓.
+Przyciski powrotu mają strzałkę ↩ i osobny styl, a wyjście na ulicę dodatkowo
+wyróżnia się kolorem. Tab przechodzi między przyciskami paska i rozmowy.
+
+Wątek „Pierwsza własna kopia” obejmuje trzy etapy z listami postępu:
+poznanie radiomagnetofonu i porad Stefana oraz Zofii, zdobycie oryginału od Zofii
+i czystej kasety od Marka, następnie kopiowanie, tekstowo przedstawiony odsłuch
+w mieszkaniu 5 i sprzedaż sprawdzonej kopii Piotrowi za 12 zł. Cele w dzienniku
+nie zdradzają rozmówców ani adresów. Kopiowanie zużywa czystą taśmę i zachowuje
+oryginał. Przedmioty zadaniowe można otrzymać tylko raz; sprzedaż jest jednorazowa.
+
+Stan gry jest automatycznie zapisywany w `localStorage`: po zmianach, co dwie
+sekundy oraz przy opuszczeniu karty. Po odświeżeniu wracają portfel, przedmioty,
+notatki, przeczytane tematy, postęp zadań, poziom i położenie postaci lub wnętrze.
+Rozmowa po wczytaniu wraca do menu lokacji. Zapis dotyczy tej przeglądarki i tego
+adresu gry; usunięcie danych witryny usuwa również zapis. Uszkodzony zapis nie
+blokuje uruchomienia gry, a blokada pamięci przeglądarki wyświetla komunikat.
+
+Skok i atak są tymczasowo ukryte, a ich skróty nie działają podczas gry.
+SP pozostaje widoczne jako nieaktywna akcja w przygotowaniu.
+
+### Nowi przechodnie w stylu PRL
+
+Obok dresiarza pojawiają się kolejno staruszka z laską i siatką, matka z dzieckiem
+w granatowym wózku oraz dorosła blondynka w minispódniczce i szpilkach. Mają
+osobne cykle chodu i pośpiechu oraz stroje inspirowane latami 70./80. Staruszka
+idzie z prędkością 11 px/s, matka 18 px/s, blondynka 21 px/s, a dresiarz 23 px/s.
+Nowe postacie korzystają ze wspólnej logiki przechodniów i własnych temp animacji.
+Matka po zatrzymaniu pozostaje przy stojącym wózku. Nowe NPC nie odtwarzają
+męskich kwestii dresiarza.
+
+Grafiki wygenerowano wbudowanym narzędziem `image_gen`. Źródła i atlasy są
+w `assets/pedestrians/`: `elderly-source.png`, `mother-source.png`,
+`blonde-source.png` oraz odpowiadające im pliki `*-sprites.png`. Pełne prompty
+zapisano w `assets/pedestrians/prl-generation-prompts.json`.
+`python build_prl_pedestrian_assets.py` pakuje 24 klatki do
+`prl_pedestrian_assets.js`, również do działania przez `file://`.
+Testy: `node --test tests/*.test.cjs`.
+
+Matka korzysta z poprawionego, ośmioklatkowego cyklu z
+`assets/pedestrians/mother-walk-v2-source.png`. Nogi animują się zgodnie
+z przebytą odległością (24 px na pełny cykl); wózek ma stałą grafikę
+i położenie względem matki, dzięki czemu nie cofa się przy zmianach klatek.
+
 ### Wejście do Społem
 
 Na poziomie Polska / PRL podejdź pod drzwi Społem i naciśnij **↑ / W** albo kliknij podpowiedź wejścia. Bohater odwraca się tyłem, idzie do drzwi i zmniejsza się wraz z oddalaniem. Po przejściu pojawia się wnętrze sklepu z zakupami i rozmową ze sprzedawczynią.
 
-Opcje wybierzesz myszą, dotykiem, klawiszami **1–3** lub **↑ / ↓ + Enter**. **Esc** wraca do głównego menu sklepu, a z niego na ulicę. Zakupy i portfel są zachowywane do odświeżenia strony. Scenę, animację wejścia i menu obsługuje wspólny plik `building_interaction.js` dla wersji samodzielnej i modułowej.
+Opcje wybierzesz myszą, dotykiem, klawiszami **1–3** lub **↑ / ↓ + Enter**. **Esc** wraca do głównego menu sklepu, a z niego na ulicę. Zakupy i portfel są zachowywane w automatycznym zapisie przeglądarki. Scenę, animację wejścia i menu obsługuje wspólny plik `building_interaction.js` dla wersji samodzielnej i modułowej.
 
 Wejście bohatera korzysta z 4 wygenerowanych klatek obrotu oraz 4 klatek chodu tyłem, opartych na `hero_tight.png`. Źródło i prompt imagegen znajdują się w `assets/entry/hero-entry-source.png` i `assets/entry/generation-prompt.txt`. `python build_entry_assets.py` pakuje klatki do `entry_assets.js`. Postać obraca się przez 0,35 s, potem idzie w stronę drzwi i maleje; animacja działa też przy wejściu do bloku.
 
@@ -18,9 +69,9 @@ Dziewięć nowych grafik rastrowych pochodzi z wbudowanego generatora `image_gen
 
 ### Rozmowy, notatnik i mieszkanie 5
 
-`location_dialogues.js` zawiera osobne listy mieszkańców sześciu budynków oraz sprzedawców Społem, Ruchu, kina i targu. Po odebraniu domofonu można wybierać pytania. Rozmówcy podpowiadają, gdzie znaleźć osoby interesujące się naprawą sprzętu, nagraniami i kasetami; mają też własne historie o osiedlu. Przeczytane odpowiedzi trafiają do wspólnego notatnika dostępnego w menu lokacji. Notatki pozostają do odświeżenia strony, tak jak plecak i portfel.
+`location_dialogues.js` zawiera osobne listy mieszkańców sześciu budynków oraz sprzedawców Społem, Ruchu, kina i targu. Po odebraniu domofonu można wybierać pytania. Rozmówcy podpowiadają, gdzie znaleźć osoby interesujące się naprawą sprzętu, nagraniami i kasetami; mają też własne historie o osiedlu. Przydatne informacje z odpowiedzi trafiają do notatnika jako krótkie wpisy o osobach, adresach i obsłudze sprzętu. Notatki, plecak i portfel pozostają w zapisie przeglądarki po odświeżeniu strony.
 
-W starej kamienicy pozycja **5** na liście domofonu to **Moje mieszkanie**. Wejście jest też dostępne bezpośrednio w menu klatki. Pokój ma wygenerowane tło `assets/interiors/apartment-05.png`: komputer z monitorem CRT, osobną obudową i klawiaturą oraz jeden radiomagnetofon z dwiema kieszeniami na kasety. Prompt wbudowanego `image_gen` zapisano w `assets/interiors/apartment-05-prompt.txt`. Komputer i radio można obejrzeć; wyposażenie przygotowuje miejsce pod przyszłą misję przegrywania, sama misja nie jest jeszcze uruchomiona.
+W starej kamienicy pozycja **5** na liście domofonu to **Moje mieszkanie**. Wejście jest też dostępne bezpośrednio w menu klatki. Pokój ma wygenerowane tło `assets/interiors/apartment-05.png`: komputer z monitorem CRT, osobną obudową i klawiaturą oraz jeden radiomagnetofon z dwiema kieszeniami na kasety. Prompt wbudowanego `image_gen` zapisano w `assets/interiors/apartment-05-prompt.txt`. Komputer i radio można obejrzeć; radiomagnetofon pozwala wykonać i sprawdzić kopię w zadaniu „Pierwsza własna kopia”.
 
 We wnętrzu kamienicy i mieszkania 5 bohater korzysta z osobnego, szczegółowego arkusza pixel art `assets/interior-hero/hero-atlas-source.png`, wygenerowanego wbudowanym `image_gen` na podstawie `hero_hoodie_cropped.png`. Patrzy w prawo i jest wyższy; cztery klatki stania obejmują oddech oraz krótkie mrugnięcie, a cztery klatki chodu obsługują wejście i podejście do komputera/radia. Podłoga pozostaje na jednej wysokości we wszystkich klatkach. Grafiki i animacje postaci na ulicy są niezależne od tej wersji.
 
@@ -34,7 +85,7 @@ Atak **F / J** działa również podczas chodu i biegu (**Shift + kierunek**), b
 
 `moving_attack.js` łączy górę klatki ciosu z nogami aktualnej klatki chodu lub biegu. Cykl kroków trwa niezależnie od uderzeń, również przy przejściu z ataku do biegu; stopy zachowują wysokość z oryginalnych klatek. Korzysta z istniejących grafik rastrowych obu skórek, bez nowych generowanych obrazów.
 
-Gdy spokojnie idący dresik zbliży się do bohatera, odtwarzany jest losowo jeden z dwóch dodanych plików MP3 ElevenLabs. Każdy przechodzień mówi raz; między wypowiedziami jest co najmniej 6 sekund przerwy, a głosy nie nakładają się. Muzyka przycicha na czas tekstu. Wyciszenie i opuszczenie karty zatrzymują głos. Przechodnie nie mówią do bohatera przebywającego we wnętrzu ani podczas ucieczki.
+Gdy spokojnie idący dresik zbliży się do bohatera, zatrzymuje się obok niego, odwraca twarzą w jego stronę i rzuca zaczepkę („Masz jakiś problem?” lub „Wyskakuj z kasy!”) z dymkiem dialogowym i losowym plikiem MP3 ElevenLabs. Dresik stoi obok i czeka, dopóki gracz nie odejdzie; po oddaleniu się bohatera dresik po krótkiej chwili (ok. 1.2 s) rusza dalej w swoją stronę. Każdy przechodzień mówi raz; między wypowiedziami jest co najmniej 6 sekund przerwy, a głosy nie nakładają się. Muzyka przycicha na czas tekstu. Wyciszenie i opuszczenie karty zatrzymują głos. Przechodnie nie mówią do bohatera przebywającego we wnętrzu ani podczas ucieczki.
 
 Muzyka startuje po kliknięciu, dotknięciu lub klawiszu. Jeśli przeglądarka odrzuci pierwszą próbę, kolejne gesty ponawiają odtwarzanie; wznowienie działa też po załadowaniu muzyki i powrocie do karty. Testy dźwięku i przechodniów: `node --test tests/game_audio.test.cjs tests/pedestrians.test.cjs`.
 

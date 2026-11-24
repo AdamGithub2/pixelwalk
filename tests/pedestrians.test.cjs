@@ -151,3 +151,89 @@ test('unavailable audio does not consume a walkers line', () => {
   crowd.update(0.01);
   assert.equal(person.hasSpoken, true);
 });
+
+test('PRL pedestrians have individual speeds and the elderly woman walks slowest', () => {
+  const { crowd } = setup();
+  const types = ['tracksuit', 'elderly', 'mother', 'blonde'];
+  const people = types.map(type => crowd.spawn(200, 1, true, type));
+  crowd.update(1);
+  assert.deepEqual(people.map(person => person.x - 200), [23, 11, 18, 21]);
+  assert.deepEqual(people.map(person => person.hasBat), [true, false, false, false]);
+  assert.ok(people[1].phase < 7);
+  for (const person of people) { crowd.hit(person); person.stun = 0; }
+  const starts = people.map(person => person.x);
+  crowd.update(1);
+  assert.deepEqual(people.map((person, i) => person.x - starts[i]), [92, 30, 46, 64]);
+});
+
+test('ambient arrivals cycle through the original and all three new NPCs', () => {
+  const { crowd } = setup();
+  const types = [];
+  for (let i = 0; i < 8; i++) {
+    crowd.people = [];
+    crowd.spawnTimer = 0;
+    crowd.update(0.01);
+    types.push(crowd.people[0].type);
+  }
+  assert.deepEqual(types, ['tracksuit', 'elderly', 'mother', 'blonde',
+    'tracksuit', 'elderly', 'mother', 'blonde']);
+  crowd.reset();
+  crowd.spawnTimer = 0;
+  crowd.update(0.01);
+  assert.equal(crowd.people[0].type, 'tracksuit');
+});
+
+test('new NPCs do not reuse the tracksuit male voice and retain hit handling', () => {
+  const { engine, crowd } = setup();
+  engine.audio = { playPasserby: () => { throw new Error('Wrong NPC voice'); } };
+  for (const type of ['elderly', 'mother', 'blonde']) {
+    const person = crowd.spawn(145, 1, true, type);
+    crowd.update(0.01);
+    for (let i = 0; i < 3; i++) crowd.hit(person);
+    assert.equal(person.state, 'down');
+    assert.equal(person.hasBat, false);
+  }
+});
+
+test('the mother completes one eight-frame stride per 24 pixels at either speed and direction', () => {
+  for (const facing of [-1, 1]) {
+    for (const state of ['walk', 'flee']) {
+      const { crowd } = setup();
+      const mother = crowd.spawn(200, facing, false, 'mother');
+      mother.state = state;
+      mother.phase = 0;
+      const speed = state === 'walk' ? 18 : 46;
+      for (let i = 0; i < 10; i++) crowd.update(24 / speed / 10);
+      assert.ok(Math.abs(mother.phase - 8) < 1e-9);
+      assert.ok(Math.abs(mother.x - (200 + facing * 24)) < 1e-9);
+      const phase = mother.phase;
+      mother.stun = 1;
+      crowd.update(0.1);
+      assert.equal(mother.phase, phase);
+    }
+  }
+});
+
+test('tracksuit stops near player to confront, faces player, and resumes after player walks away', () => {
+  const { engine, crowd } = setup();
+  engine.audio = { playPasserby: () => true, lastVoiceLine: 'Masz jakiś problem?' };
+  // player at 100, width 48 -> center 124
+  const person = crowd.spawn(145, -1, true, 'tracksuit');
+  crowd.update(0.01);
+  assert.equal(person.state, 'confront');
+  assert.equal(person.facing, -1);
+  assert.equal(person.speechText, 'Masz jakiś problem?');
+  const stoppedX = person.x;
+  crowd.update(1.0);
+  assert.equal(person.state, 'confront');
+  assert.equal(person.x, stoppedX);
+
+  engine.player.x = 220;
+  crowd.update(0.5);
+  assert.equal(person.state, 'confront');
+  crowd.update(0.8);
+  assert.equal(person.state, 'walk');
+  assert.equal(person.facing, -1);
+  crowd.update(1.0);
+  assert.ok(person.x < stoppedX);
+});

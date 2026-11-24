@@ -3,11 +3,16 @@ globalThis.GameAudio = class GameAudio {
     this.music = new Audio('./45.5 clean (Cover).mp3');
     this.steps = new Audio('./steps.wav');
     this.jumpSound = new Audio('./jump.wav');
+    this.voiceLines = [
+      'Masz jakiś problem?',
+      'Wyskakuj z kasy!'
+    ];
     this.voices = [
       new Audio('./ElevenLabs_2026-11-24T14_06_38_Maciej - Rich, Moody and Deep_pvc_s50_sim75_v4.mp3'),
       new Audio('./ElevenLabs_2026-11-24T14_07_45_Maciej - Rich, Moody and Deep_pvc_s50_sim75_v4.mp3')
     ];
     this.currentVoice = null;
+    this.lastVoiceLine = '';
     this.pendingPlays = new Map();
     this.music.loop = true;
     this.steps.loop = true;
@@ -60,7 +65,9 @@ globalThis.GameAudio = class GameAudio {
 
   playPasserby() {
     if (!this.unlocked || !this.active || this.muted || this.currentVoice) return false;
-    const voice = this.voices[Math.floor(Math.random() * this.voices.length)];
+    const index = Math.floor(Math.random() * this.voices.length);
+    const voice = this.voices[index];
+    this.lastVoiceLine = this.voiceLines[index] ?? 'Masz jakiś problem?';
     this.currentVoice = voice;
     voice.currentTime = 0;
     this.music.volume = 0.10;
