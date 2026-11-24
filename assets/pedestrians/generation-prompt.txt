@@ -1,0 +1,12 @@
+Tool: built-in image_gen.imagegen
+Reference: hero_tight.png
+
+Use case: style-transfer.
+Asset type: production transparent sprite atlas for the existing side-scrolling game.
+Input image 1 is the EDIT TARGET and character proportions/style reference: the game's existing hero. Transform him into a DISTINCT ADULT male Polish street pedestrian in a royal-blue shiny nylon tracksuit, matching the same refined hand-painted anime game sprite aesthetic, thin dark outline, nuanced fabric folds, carefully shaded face, natural anatomy, sneakers and small-scale legibility. Keep the reference body proportions and polished illustration technique, but replace the hairstyle with a very short dark buzz cut, remove backpack and hoodie completely, wear a zipped royal-blue nylon tracksuit jacket and matching loose track pants with two narrow off-white side stripes, dark sneakers with ivory soles. An adult around 25-35, relaxed neutral face.
+Deliver ONE square transparent PNG sprite atlas, a precise 4 COLUMN by 4 ROW grid of 16 equally sized cells with NO grid lines and NO text. Aim for 2048x2048. Each full-body figure is isolated on genuine transparent alpha, has the SAME head/body dimensions and baseline, centered within its cell, with generous empty margins. Face toward RIGHT, in the same mild three-quarter side view as the reference, appropriate for moving horizontally.
+Row 1: 4-frame WALK cycle WITHOUT any prop: left leg forward, passing pose, right leg forward, passing pose. Natural arm swing.
+Row 2: 4-frame RUN/FLEE cycle WITHOUT prop: forward lean, alternating full running stride, bent knees and arms. Alarmed expression, no aggression.
+Row 3: 4-frame WALK cycle carrying a plain wooden baseball bat low in the near hand, barrel pointing down, mirroring the poses of row 1.
+Row 4: 4-frame RUN/FLEE cycle carrying the bat low by the side, mirroring the poses of row 2.
+CRITICAL: preserve a consistent single character design, clothing, size, baseline and viewpoint throughout all sixteen cells. Full figure, both feet, entire bat visible in every cell, no overlap between cells. The character should occupy about 80 percent of cell height; keep head and feet away from cell edges. Correct hands, two arms, two legs only. No background, ground plane, shadows, labels, weapons being swung, attack poses, UI, watermarks, or logos. This must be polished source artwork to downsample into 48x56 game sprites; NOT crude geometric pixel blocks.

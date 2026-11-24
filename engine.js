@@ -1,3 +1,7 @@
+import './pedestrian_assets.js';
+import './pedestrians.js';
+import './entry_assets.js';
+import './building_interaction.js';
 import './game_audio.js';
 /**
  * PIXEL ART ANIMATION ENGINE & COMPOSITOR
@@ -59,6 +63,8 @@ export class AnimationEngine {
 
     // Klawisze i wejście
     this.keys = {};
+    this.building = new globalThis.BuildingInteraction(this);
+    this.pedestrians = new globalThis.Pedestrians(this);
     this.initInput();
 
     // Czas i pętla gry
@@ -85,6 +91,7 @@ export class AnimationEngine {
 
   initInput() {
     window.addEventListener('keydown', (e) => {
+      if (this.building.handleKey(e)) return;
       this.keys[e.code] = true;
 
       // Klawisze bezpośredniego przełączania animacji (dla szybkiego testu)
@@ -119,6 +126,7 @@ export class AnimationEngine {
     if (!this.character.animations[animName]) return;
     if (this.player.currentAnim === animName && this.player.isPlaying) return;
 
+    if (animName === 'attack') this.pedestrians.beginAttack();
     this.player.currentAnim = animName;
     this.player.frameIndex = 0;
     this.player.frameTimer = 0;
@@ -145,21 +153,26 @@ export class AnimationEngine {
   }
 
   async setLevel(level) {
+    if (this.building?.active) this.building.reset();
     const previousGround = this.getGroundLevel();
     await this.background.setLevel(level);
+    this.pedestrians.reset();
     // Preserve the current jump height when changing scenery in mid-air.
     this.player.y += this.getGroundLevel() - previousGround;
   }
 
   triggerAttack() {
+    if (this.building.active) return;
     this.setAnimation('attack', false);
   }
 
   triggerSpecial() {
+    if (this.building.active) return;
     this.setAnimation('special', false);
   }
 
   jump() {
+    if (this.building.active) return;
     if (this.player.isGrounded) {
       this.audio.jump();
       this.player.vy = -4.5;
@@ -201,6 +214,10 @@ export class AnimationEngine {
 
   // --- AKTUALIZACJA LOGIKI I FIZYKI ---
   update(dt) {
+    if (this.building.update(dt)) {
+      this.pedestrians.update(dt);
+      return;
+    }
     const previousX = this.player.x;
     this.timeCounter += dt;
 
@@ -210,6 +227,8 @@ export class AnimationEngine {
     } else {
       this.updatePlayerMovement(dt);
     }
+
+    this.pedestrians.update(dt);
 
     // Aktualizacja klatek animacji postaci
     if (this.player.isPlaying && !(this.player.currentAnim === 'jump' && !this.player.isGrounded)) {
@@ -278,7 +297,7 @@ export class AnimationEngine {
 
     // Ruch w poziomie z blokadą wyjścia w lewo poza początek ulicy
     this.player.vx = moveX * speed;
-    this.player.x += this.player.vx;
+    this.player.x += this.player.vx * dt * 60;
 
     const minPlayerX = 26;
     if (this.player.x < minPlayerX) {
@@ -360,6 +379,10 @@ export class AnimationEngine {
 
   // --- RENDEROWANIE PIXEL-PERFECT ---
   render() {
+    if (this.building.state === 'inside') {
+      this.building.drawInterior(this.ctx, this.canvas.width, this.canvas.height);
+      return;
+    }
     const bctx = this.bctx;
 
     // 1. Czyszczenie bufora wirtualnego
@@ -368,6 +391,8 @@ export class AnimationEngine {
 
     // 2. Renderowanie wielowarstwowego tła
     this.background.render(bctx, this.cameraX, this.timeCounter);
+    this.building.renderBehindPlayer(bctx);
+    this.pedestrians.render(bctx);
 
     // 3. Pozycja postaci na ekranie (ZAWSZE zaokrąglona do liczby całkowitej!)
     const screenX = Math.round(this.player.x - this.cameraX);
@@ -376,7 +401,7 @@ export class AnimationEngine {
     const currentFrames = this.character.animations[this.player.currentAnim];
     const currentFrame = currentFrames ? currentFrames[this.player.frameIndex] : null;
 
-    if (currentFrame) {
+    if (currentFrame && !['entering', 'inside'].includes(this.building.state)) {
       // 4. ONION SKINNING (jeśli włączony - pokazuje widmo poprzedniej klatki w kolorze cyan)
       if (this.player.onionSkin && this.player.prevFrameCanvas) {
         bctx.save();
@@ -390,6 +415,7 @@ export class AnimationEngine {
     }
 
     // 6. Przeskalowanie bufora 320x180 na główny Canvas użytkownika z zachowaniem crisp-edges
+    this.building.render(bctx);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(
       this.buffer,

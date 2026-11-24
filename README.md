@@ -1,6 +1,26 @@
 # PIXEL ART ANIMATION ENGINE // FRAME BLITTER
 
+### Wejście do Społem
+
+Na poziomie Polska / PRL podejdź pod drzwi Społem i naciśnij **↑ / W** albo kliknij podpowiedź wejścia. Bohater odwraca się tyłem, idzie do drzwi i zmniejsza się wraz z oddalaniem. Po przejściu pojawia się wnętrze sklepu z zakupami i rozmową ze sprzedawczynią.
+
+Opcje wybierzesz myszą, dotykiem, klawiszami **1–3** lub **↑ / ↓ + Enter**. **Esc** wraca do głównego menu sklepu, a z niego na ulicę. Zakupy i portfel są zachowywane do odświeżenia strony. Scenę, animację wejścia i menu obsługuje wspólny plik `building_interaction.js` dla wersji samodzielnej i modułowej.
+
+Wejście bohatera korzysta z 4 wygenerowanych klatek obrotu oraz 4 klatek chodu tyłem, opartych na `hero_tight.png`. Źródło i prompt imagegen znajdują się w `assets/entry/hero-entry-source.png` i `assets/entry/generation-prompt.txt`. `python build_entry_assets.py` pakuje klatki do `entry_assets.js`. Postać obraca się przez 0,35 s, potem idzie w stronę drzwi i maleje; animacja działa też przy wejściu do bloku.
+
+### Klatka i domofon
+
+W szarym bloku bezpośrednio po prawej stronie Społem jest drugie wejście (**↑ / W** lub przycisk na ekranie). Pojawia się obraz `Retro Pixel-Art Entrance with Flowering Balconies.png` oraz lista pięciu mieszkańców. **1–5**, mysz lub dotyk wybierają osobę; po dźwięku domofonu wyświetla się odpowiedź albo informacja, że nikt nie odbiera. **Esc** wraca do listy, a z listy na ulicę. Wyjście anuluje trwające dzwonienie.
+
 Projekt dedykowany animacji klatkowej w stylu **Pixel Art** bez użycia SVG i bez wektorowych transformacji, które niszczą charakterystyczną ostrość pikseli.
+
+### Przechodnie i pościg
+
+Co kilka sekund na ulicy pojawiają się przechodnie w niebieskich ortalionowych dresach, niektórzy z kijem baseballowym. Sami nie atakują. Trafienie klawiszem **F / J** lub przyciskiem **ATK** powoduje ucieczkę. Dogonisz ich sprintem (**Shift + ruch**); trzecie celne uderzenie przewraca postać. Jeden zamach może trafić danego przechodnia tylko raz. Trzy znaczniki nad trafionym przechodniem pokazują liczbę otrzymanych ciosów.
+
+Logika przechodniów jest we wspólnym pliku `pedestrians.js`. Grafika v2 została wygenerowana narzędziem imagegen na podstawie `hero_tight.png`: 16 klatek chodu i biegu, z kijem i bez, znajduje się w `assets/pedestrians/tracksuit-atlas-v2.png`. Prompt zapisano w `assets/pedestrians/generation-prompt.txt`. Skrypt `python build_pedestrian_assets.py` pakuje atlas do klatek 48×56 i pliku `pedestrian_assets.js`, również dla uruchamiania przez `file://`. Testy uruchomisz poleceniem `node --test tests/pedestrians.test.cjs`.
+
+Po upadku wyświetlana jest osobna grafika leżącej postaci z `assets/pedestrians/tracksuit-downed-source.png`, w wariancie z upuszczonym kijem lub bez. Zastępuje obróconą klatkę chodu po zakończeniu krótkiego przewrócenia. Prompt imagegen znajduje się w `assets/pedestrians/downed-generation-prompt.txt`; ten sam skrypt pakujący przygotowuje obie pozy do gry.
 
 ---
 

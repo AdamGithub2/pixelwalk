@@ -59,6 +59,30 @@ globalThis.GameAudio = class GameAudio {
     this.play(this.jumpSound);
   }
 
+  ringIntercom() {
+    if (this.muted || !this.active || !this.unlocked) return;
+    const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
+    if (!AudioContext) return;
+    this.intercomContext ??= new AudioContext();
+    const context = this.intercomContext;
+    context.resume().catch(() => {});
+    for (let i = 0; i < 2; i++) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const start = context.currentTime + i * 0.3;
+      oscillator.type = 'sine';
+      oscillator.frequency.value = i ? 660 : 880;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.1, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.23);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.24);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    }
+  }
+
   suspend() {
     this.active = false;
     this.tracks.forEach(track => track.pause());

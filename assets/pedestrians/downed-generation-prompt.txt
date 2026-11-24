@@ -1,0 +1,12 @@
+Tool: built-in image_gen.imagegen
+Reference: assets/pedestrians/tracksuit-atlas-v2.png
+
+Use case: style-transfer.
+Asset type: a transparent 2-frame knockout sprite atlas for a side-scrolling videogame.
+Input image is a character identity, clothing, palette and illustration style REFERENCE. Make NEW artwork of this same adult male character with short dark buzzcut, royal blue shiny nylon tracksuit with narrow off-white stripes, dark sneakers with ivory soles. Match its polished painted anime game sprite rendering, anatomy and detail exactly.
+Deliver a wide transparent PNG with TWO EQUAL CELLS arranged SIDE BY SIDE (2 columns, 1 row), no labels or grid. Each cell contains a complete isolated knocked-down character on genuine transparent alpha.
+Both cells depict the SAME FINAL DOWNED POSE: the man is defeated, lying curled naturally on his side on an implied horizontal ground line, head at LEFT and feet at RIGHT. Cheek and shoulder close to the ground, face visible with closed or tightly squinting eyes and pained exhausted expression. One arm is bent under or beside his head, the other rests loosely in front of his chest. Knees are bent naturally, one leg slightly forward, sneakers touch the ground. Jacket and trousers are rumpled and slightly dusty. This is purpose-drawn lying anatomy, NOT a rotated standing/walking character. The body must look limp and grounded, no floating legs or raised walking stride. Two arms, two legs, correct anatomy.
+LEFT CELL: no baseball bat anywhere.
+RIGHT CELL: identical pose and scale, with the wooden baseball bat dropped flat beside the hand, resting on the same implied ground line, completely within this cell. He is NOT holding it.
+Keep both figures the same scale, same baseline, similar framing, with generous empty margins. The horizontal extent of the body should be about 2.5 times its height. Full head and both feet completely visible. Side-on game camera at street level, slight three-quarter view showing the face.
+No background, pavement, vignette, cast shadows, text, UI, logos, or borders. Non-graphic cartoon defeat, no blood or wounds. Avoid any colored fringe, stray isolated speckles or halos around the cutout.
