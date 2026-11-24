@@ -5,6 +5,10 @@ globalThis.InteriorHero = class InteriorHero {
     this.image.src = globalThis.INTERIOR_HERO_ASSETS.src;
     this.scene = null;
     this.time = 0;
+    this.walkPhase = 0;
+    this.moveSpeed = 0.095;
+    // Fraction of the room width travelled over one full four-frame walk cycle.
+    this.strideLength = 0.16;
     this.x = 0.10;
     this.targetX = 0.16;
     this.walking = false;
@@ -14,12 +18,14 @@ globalThis.InteriorHero = class InteriorHero {
     if (this.scene === scene) return;
     this.scene = scene;
     this.time = 0;
+    this.walkPhase = 0;
     this.x = 0.10;
     this.targetX = 0.16;
     this.walking = true;
   }
 
   walkTo(x) {
+    if (!this.walking) this.walkPhase = 0;
     this.targetX = Math.max(0.10, Math.min(0.23, x));
     this.walking = Math.abs(this.targetX - this.x) > 0.001;
   }
@@ -28,8 +34,10 @@ globalThis.InteriorHero = class InteriorHero {
     this.time += dt;
     const distance = this.targetX - this.x;
     if (!this.walking) return;
-    const step = Math.min(Math.abs(distance), Math.max(0, dt) * 0.065);
+    const step = Math.min(Math.abs(distance), Math.max(0, dt) * this.moveSpeed);
     this.x += Math.sign(distance) * step;
+    const frames = globalThis.INTERIOR_HERO_ASSETS.walk.length;
+    this.walkPhase = (this.walkPhase + step / this.strideLength * frames) % frames;
     if (Math.abs(this.targetX - this.x) < 0.001) {
       this.x = this.targetX;
       this.walking = false;
@@ -42,7 +50,7 @@ globalThis.InteriorHero = class InteriorHero {
     const asset = globalThis.INTERIOR_HERO_ASSETS;
     const frames = asset[this.walking ? 'walk' : 'idle'];
     const breath = this.time % 3.5;
-    const index = this.walking ? Math.floor(this.time * 7) % frames.length
+    const index = this.walking ? Math.floor(this.walkPhase) % frames.length
       : breath < 1 ? 0 : breath < 2 ? 1 : breath < 3.38 ? 2 : 3;
     const frame = frames[index];
     const [sx, sy, sw, sh] = frame;
