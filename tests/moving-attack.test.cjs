@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 require('../pedestrians.js');
+require('../moving_attack.js');
 
 for (const filename of ['engine.js', 'index.html']) {
   const source = fs.readFileSync(path.join(__dirname, '..', filename), 'utf8');
@@ -11,6 +12,7 @@ for (const filename of ['engine.js', 'index.html']) {
   const prototype = vm.runInNewContext(source.slice(start, source.indexOf('\n}', start) + 2) + '\nAnimationEngine.prototype', { setTimeout });
   function setup(keys = {}) {
     const e = Object.create(prototype);
+    e.movingAttack = new globalThis.MovingAttackAnimation();
     Object.assign(e, {
       keys, cameraX: 0, timeCounter: 0, virtualWidth: 320,
       building: { active: false, update: () => false },
@@ -51,6 +53,27 @@ for (const filename of ['engine.js', 'index.html']) {
       assert.equal(e.player.currentAnim, moving ? 'walk' : 'idle');
       assert.ok(Math.abs(e.player.x - (moving ? 161.6 : 200)) < 0.00001);
     }
+  });
+
+  test(`${filename}: the leg cycle continues through a punch and its recovery`, () => {
+    const e = setup({ KeyD: true, ShiftLeft: true });
+    e.update(0.08);
+    const before = e.movingAttack.phase;
+    e.triggerAttack();
+    e.update(0.08);
+    assert.ok(e.movingAttack.phase > before);
+    assert.equal(e.player.currentAnim, 'attack');
+    for (let i = 0; i < 5; i++) e.update(0.08);
+    assert.equal(e.player.currentAnim, 'run');
+    assert.equal(e.player.frameIndex, Math.floor(e.movingAttack.phase));
+    const continuing = e.movingAttack.phase;
+    e.triggerAttack();
+    assert.equal(e.movingAttack.phase, continuing, 'the next punch must not restart the legs');
+    e.keys = {};
+    e.update(0.02);
+    assert.equal(e.movingAttack.phase, continuing, 'feet stop when movement stops');
+    const attack = e.character.animations.attack[e.player.frameIndex];
+    assert.equal(e.movingAttack.frame(e, attack), attack);
   });
 
   test(`${filename}: changing direction during a swing keeps the hit and sprite facing consistent`, () => {

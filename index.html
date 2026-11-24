@@ -196,6 +196,7 @@
   <script src="building_interaction.js?v=4"></script>
   <script src="pedestrian_assets.js?v=3"></script>
   <script src="pedestrians.js?v=5"></script>
+  <script src="moving_attack.js?v=1"></script>
   <script>
 
 // 1. DUSK CITY SEAMLESS BACKGROUND (640x180 Ping-Pong)
@@ -905,6 +906,7 @@ class AnimationEngine {
     this.keys = {};
     this.building = new globalThis.BuildingInteraction(this);
     this.pedestrians = new globalThis.Pedestrians(this);
+    this.movingAttack = new globalThis.MovingAttackAnimation();
     this.initInput();
 
     // Czas i pętla gry
@@ -1199,6 +1201,7 @@ class AnimationEngine {
       }
     }
 
+    this.movingAttack.update(this, dt, this.player.x !== previousX);
     // Płynne podążanie kamery za postacią (kamera NIGDY nie zjeżdża poniżej 0)
     this.audio.setWalking(
       this.player.isGrounded && this.player.isPlaying && this.player.x !== previousX &&
@@ -1333,7 +1336,7 @@ class AnimationEngine {
     const screenY = Math.round(this.player.y);
 
     const currentFrames = this.character.animations[this.player.currentAnim];
-    const currentFrame = currentFrames ? currentFrames[this.player.frameIndex] : null;
+    const currentFrame = this.movingAttack.frame(this, currentFrames?.[this.player.frameIndex]);
 
     if (currentFrame && !['entering', 'inside'].includes(this.building.state)) {
       // 4. ONION SKINNING (jeśli włączony - pokazuje widmo poprzedniej klatki w kolorze cyan)

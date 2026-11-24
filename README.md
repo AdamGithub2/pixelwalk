@@ -22,6 +22,8 @@ Projekt dedykowany animacji klatkowej w stylu **Pixel Art** bez użycia SVG i be
 
 Atak **F / J** działa również podczas chodu i biegu (**Shift + kierunek**), bez zatrzymywania postaci. Animacja ciosu kończy się przed powrotem do chodu lub sprintu. Na telefonie można przytrzymać kierunek i RUN, jednocześnie naciskając ATK.
 
+`moving_attack.js` łączy górę klatki ciosu z nogami aktualnej klatki chodu lub biegu. Cykl kroków trwa niezależnie od uderzeń, również przy przejściu z ataku do biegu; stopy zachowują wysokość z oryginalnych klatek. Korzysta z istniejących grafik rastrowych obu skórek, bez nowych generowanych obrazów.
+
 Gdy spokojnie idący dresik zbliży się do bohatera, odtwarzany jest losowo jeden z dwóch dodanych plików MP3 ElevenLabs. Każdy przechodzień mówi raz; między wypowiedziami jest co najmniej 6 sekund przerwy, a głosy nie nakładają się. Muzyka przycicha na czas tekstu. Wyciszenie i opuszczenie karty zatrzymują głos. Przechodnie nie mówią do bohatera przebywającego we wnętrzu ani podczas ucieczki.
 
 Muzyka startuje po kliknięciu, dotknięciu lub klawiszu. Jeśli przeglądarka odrzuci pierwszą próbę, kolejne gesty ponawiają odtwarzanie; wznowienie działa też po załadowaniu muzyki i powrocie do karty. Testy dźwięku i przechodniów: `node --test tests/game_audio.test.cjs tests/pedestrians.test.cjs`.

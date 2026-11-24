@@ -3,6 +3,7 @@ import './pedestrians.js';
 import './entry_assets.js';
 import './building_interaction.js';
 import './game_audio.js';
+import './moving_attack.js';
 /**
  * PIXEL ART ANIMATION ENGINE & COMPOSITOR
  * 
@@ -65,6 +66,7 @@ export class AnimationEngine {
     this.keys = {};
     this.building = new globalThis.BuildingInteraction(this);
     this.pedestrians = new globalThis.Pedestrians(this);
+    this.movingAttack = new globalThis.MovingAttackAnimation();
     this.initInput();
 
     // Czas i pętla gry
@@ -265,6 +267,7 @@ export class AnimationEngine {
       }
     }
 
+    this.movingAttack.update(this, dt, this.player.x !== previousX);
     // Płynne podążanie kamery za postacią (kamera NIGDY nie zjeżdża poniżej 0)
     this.audio.setWalking(
       this.player.isGrounded && this.player.isPlaying && this.player.x !== previousX &&
@@ -399,7 +402,7 @@ export class AnimationEngine {
     const screenY = Math.round(this.player.y);
 
     const currentFrames = this.character.animations[this.player.currentAnim];
-    const currentFrame = currentFrames ? currentFrames[this.player.frameIndex] : null;
+    const currentFrame = this.movingAttack.frame(this, currentFrames?.[this.player.frameIndex]);
 
     if (currentFrame && !['entering', 'inside'].includes(this.building.state)) {
       // 4. ONION SKINNING (jeśli włączony - pokazuje widmo poprzedniej klatki w kolorze cyan)
