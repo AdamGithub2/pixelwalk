@@ -1,0 +1,456 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+  --bg-dark: #070913;
+  --panel-bg: #0e1222;
+  --panel-border: #1f2945;
+  --panel-border-bright: #3d5080;
+  --neon-cyan: #00f0ff;
+  --neon-pink: #ff007f;
+  --neon-yellow: #ffe600;
+  --neon-green: #39ff14;
+  --text-main: #d1dcfa;
+  --text-muted: #64748b;
+  --font-retro: 'VT323', monospace;
+  --font-pixel: 'Press Start 2P', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+/* Wymuszenie czystego renderowania pikseli */
+canvas, img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+body {
+  background-color: #000;
+  color: var(--text-main);
+  font-family: var(--font-retro);
+  font-size: 19px;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   GŁÓWNA SCENA GRY (100% PEŁNY EKRAN)
+   ========================================================================== */
+.stage-wrapper {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #050512;
+  overflow: hidden;
+  z-index: 1;
+}
+
+#viewport-canvas {
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  display: block;
+}
+
+/* Opcjonalny filtr CRT Scanline */
+.crt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+  background-size: 100% 4px;
+  opacity: 0.55;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   PŁYWAJĄCE KONTROLKI NA PEŁNYM EKRANIE
+   ========================================================================== */
+.floating-hud {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  z-index: 40;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.hud-pill {
+  background: rgba(14, 18, 34, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 6px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.hud-pill span {
+  color: var(--neon-cyan);
+}
+
+.floating-top-bar {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.floating-btn {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  background: rgba(14, 18, 34, 0.88);
+  backdrop-filter: blur(6px);
+  color: var(--neon-cyan);
+  border: 2px solid var(--neon-cyan);
+  padding: 10px 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 240, 255, 0.25);
+  transition: all 0.2s ease;
+}
+
+.floating-btn:hover {
+  background: var(--neon-cyan);
+  color: #050711;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   WYSUWANY PANEL BOCZNY (DRAWER Z PRAWEJ)
+   ========================================================================== */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 440px;
+  max-width: 92vw;
+  height: 100vh;
+  background: rgba(11, 14, 28, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-left: 2px solid var(--neon-cyan);
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.85), -2px 0 15px rgba(0, 240, 255, 0.2);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  padding: 20px;
+  gap: 16px;
+}
+
+.side-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--panel-border-bright);
+  padding-bottom: 12px;
+}
+
+.drawer-title {
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  color: var(--neon-cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-close-drawer {
+  background: none;
+  border: 1px solid var(--panel-border);
+  color: var(--text-muted);
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.btn-close-drawer:hover {
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+}
+
+/* Sekcje wewnątrz drawera */
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(14, 18, 34, 0.6);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.section-label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--neon-yellow);
+}
+
+/* Zakładki animacji wewnątrz drawera */
+.anim-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.tab-btn {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  background: var(--panel-bg);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.tab-btn:hover {
+  border-color: var(--neon-cyan);
+  color: #fff;
+}
+
+.tab-btn.active {
+  background: var(--neon-cyan);
+  color: #050711;
+  font-weight: bold;
+  border-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+/* Pasek klatek w drawerze */
+.frames-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px;
+}
+
+.frame-thumbnail-box {
+  width: 58px;
+  height: 58px;
+  background: #080a14;
+  border: 2px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.frame-thumbnail-box:hover {
+  border-color: var(--neon-cyan);
+}
+
+.frame-thumbnail-box.active {
+  border-color: var(--neon-pink);
+  background: #171a2e;
+  box-shadow: 0 0 10px rgba(255, 0, 127, 0.4);
+}
+
+.frame-thumbnail-box canvas {
+  width: 44px;
+  height: 44px;
+}
+
+.frame-idx-label {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 10px;
+  font-family: var(--font-pixel);
+  color: var(--text-muted);
+}
+
+/* Przyciski w drawerze */
+.buttons-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  padding: 8px 12px;
+  background: #181f36;
+  color: var(--text-main);
+  border: 1px solid var(--panel-border-bright);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  border-radius: 3px;
+}
+
+.btn:hover {
+  background: #253155;
+  border-color: var(--neon-cyan);
+  color: #fff;
+}
+
+.btn.active {
+  background: var(--neon-green);
+  color: #000;
+  border-color: #fff;
+}
+
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+}
+
+input[type="range"] {
+  accent-color: var(--neon-cyan);
+  cursor: pointer;
+  flex: 1;
+}
+
+/* Skróty klawiszowe w drawerze */
+.guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.key-tag {
+  background: #1c243d;
+  color: var(--neon-cyan);
+  padding: 1px 6px;
+  border: 1px solid #33436b;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+/* Modal arkusza klatek */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.modal-content {
+  background: var(--panel-bg);
+  border: 3px solid var(--neon-cyan);
+  border-radius: 6px;
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  color: var(--neon-cyan);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.spritesheet-display-wrapper {
+  background: #000;
+  padding: 16px;
+  border: 1px dashed var(--panel-border-bright);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+}
+
+#spritesheet-view-canvas {
+  transform: scale(2.5);
+  transform-origin: center center;
+  margin: 40px;
+}
